@@ -1,0 +1,48 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "VPC thing",
+    "Parameters": {
+        "theCIDR": {
+            "Default": "10.11.0.0/16",
+            "Description": "The CIDR block of our new friend",
+            "Type": "String"
+        },
+        "azOne": {
+            "Default": "us-east-1a",
+            "Description": "The AZ for the first subnet",
+            "Type": "String"
+        },
+        "subnetCIDROne": {
+            "Default": "10.11.10.0/24",
+            "Description": "The CIDR block of our new friend",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "theVPC": {
+            "Type": "AWS::EC2::VPC",
+            "Metadata": {
+                "Comment": "Wait a second! I thought I could not comment in JSON."
+            },
+            "Properties": {
+                "CidrBlock": {
+                    "Ref": "theCIDR"
+                },
+                "EnableDnsHostnames": "false",
+                "EnableDnsSupport": "true"
+            }
+        },
+        "subnetOne": {
+            "Type": "AWS::EC2::Subnet",
+            "DependsOn": "theVPC",
+            "Properties": {
+                "AvailabilityZone": {"Ref": "azOne"},
+                "CidrBlock": {"Ref": "subnetCIDROne"},
+                "MapPublicIpOnLaunch": "false",
+                "VpcId": {
+                    "Ref": "theVPC"
+                }
+            }
+        }
+    }
+}

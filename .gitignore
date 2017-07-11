@@ -1,0 +1,8 @@
+Stackility.egg-info/
+.ropeproject/
+build/
+dist/
+.idea/
+*.pyc
+x
+x.sh
