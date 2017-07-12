@@ -371,6 +371,11 @@ class CloudStackUtility:
         stub = stub + "/" + str('%02d' % now.tm_hour)
         stub = stub + ":" + str('%02d' % now.tm_min)
         stub = stub + ":" + str('%02d' % now.tm_sec)
-        template_key = stub + "/stack.json"
+
+        if self._config.get('yaml'):
+            template_key = stub + "/stack.yaml"
+        else:
+            template_key = stub + "/stack.json"
+
         property_key = stub + "/stack.properties"
         return template_key, property_key
