@@ -68,15 +68,15 @@ def delete(stack):
 def start_work(command_line):
     stack_driver = CloudStackUtility(command_line)
     if stack_driver.create_stack():
-        logging.info('The stack create/update was started successfully.')
+        logging.info('stack create/update was started successfully.')
         if stack_driver.poll_stack():
-            logging.info('The stack create/update was finished successfully.')
+            logging.info('stack create/update was finished successfully.')
             sys.exit(0)
         else:
-            logging.error('The stack create/update was SNAFU.')
+            logging.error('stack create/update was did not go well.')
             sys.exit(1)
     else:
-        logging.error('The start of stack create/update was SNAFU.')
+        logging.error('start of stack create/update did not go well.')
         sys.exit(1)
 
 
