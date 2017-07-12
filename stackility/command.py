@@ -69,7 +69,7 @@ def start_work(command_line):
     stack_driver = CloudStackUtility(command_line)
     if stack_driver.create_stack():
         logging.info('The stack create/update was started successfully.')
-        if stack_driver.wait_for_stack():
+        if stack_driver.poll_stack():
             logging.info('The stack create/update was finished successfully.')
             sys.exit(0)
         else:
