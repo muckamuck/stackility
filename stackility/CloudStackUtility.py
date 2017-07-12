@@ -60,27 +60,36 @@ class CloudStackUtility:
             logging.error('config block was garbage')
             raise SystemError
 
-        if not self._initialize_session():
-            logging.error('_intialize_session() was snafu')
+        if not self._init_boto3_clients():
+            logging.error('session initialization was not good')
             raise SystemError
 
         if not self._initialize_parameters():
-            logging.error('_intialize_parameters() was snafu')
+            logging.error('parameter setup was not good')
             raise SystemError
 
         if not self._initialize_tags():
-            logging.error('_intialize_tags() was snafu')
+            logging.error('tags initialization was not good')
             raise SystemError
 
         if not self._copy_stuff_to_S3():
-            logging.error('_copy_stuff_to_S3() was snafu')
+            logging.error('saving stuff to S3 did not go well')
             raise SystemError
 
         if not self._set_update():
-            logging.error('_set_update() was snafu')
+            logging.error('there was a problem determining update or create')
             raise SystemError
 
-    def wait_for_stack(self):
+    def poll_stack(self):
+        """
+        Spin in a loop while the Cloud Formation process either fails or succeeds
+
+        Args:
+            None
+
+        Returns:
+            Good or bad; True or False
+        """
         logging.info('polling stack status, POLL_INTERVAL={}'.format(POLL_INTERVAL))
         time.sleep(POLL_INTERVAL)
         while True:
@@ -102,6 +111,22 @@ class CloudStackUtility:
                 return False
 
     def create_stack(self):
+        """
+        The main event of the utility. Create or update a Cloud Formation
+        stack. Injecting properties where needed
+
+        Args:
+            None
+
+        Returns:
+            True if the stack create/update is started successfully else
+            False if the start goes off in the weeds.
+
+        Exits:
+            If the user asked for a dryrun exit(with a code 0) the thing here. There is no
+            point continuing after that point.
+
+        """
         required_parameters = []
         self._stackParameters = []
 
@@ -150,7 +175,7 @@ class CloudStackUtility:
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
-            logging.info(stack)
+            logging.info(json.dumps(stack, indent=4, sort_keys=True))
         except Exception as x:
             logging.error('Exception caught in create_stack(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
@@ -160,6 +185,19 @@ class CloudStackUtility:
         return True
 
     def _initialize_parameters(self):
+        """
+        Fill in the _parameters dict from the properties file.
+
+        Args:
+            None
+
+        Returns:
+            True
+
+        Todo:
+            Figure what could go wrong and at least acknowledge the
+            the fact that Murphy was an optimist.
+        """
         with open(self._config.get('parameterFile')) as f:
             wrk = f.readline()
             while wrk:
@@ -173,6 +211,19 @@ class CloudStackUtility:
         return True
 
     def _initialize_tags(self):
+        """
+        Fill in the _tags dict from the tags file.
+
+        Args:
+            None
+
+        Returns:
+            True
+
+        Todo:
+            Figure what could go wrong and at least acknowledge the
+            the fact that Murphy was an optimist.
+        """
         with open(self._config.get('tagFile')) as f:
             wrk = f.readline()
             while wrk:
@@ -194,6 +245,16 @@ class CloudStackUtility:
         return True
 
     def _set_update(self):
+        """
+        Determine if we are creating a new stack or updating and existing one.
+        The update member is set as you would expect at the end of this query.
+
+        Args:
+            None
+
+        Returns:
+            True
+        """
         try:
             self._updateStack = False
             response = self._cloudFormation.describe_stacks(StackName=self._config.get('stackName'))
@@ -207,6 +268,20 @@ class CloudStackUtility:
         return True
 
     def _copy_stuff_to_S3(self):
+        """
+        Cloud Formation likes to take the template from S3 so here we put the
+        template into S3. We also store the parameters file that was used in
+        this run. Note: you can pass anything as the version string but you
+        should at least consider a version control tag or git commit hash as
+        the version.
+
+        Args:
+            None
+
+        Returns:
+            True if the stuff lands in S3 or False if the file doesn't
+            really exist or the upload goes sideways.
+        """
         try:
             stackfile_key, propertyfile_key = self._create_stack_file_keys()
 
@@ -247,7 +322,17 @@ class CloudStackUtility:
             traceback.print_exc(file=sys.stdout)
             return False
 
-    def _initialize_session(self):
+    def _init_boto3_clients(self):
+        """
+        The utililty requires boto3 clients to Cloud Formation and S3. Here is
+        where we make them.
+
+        Args:
+            None
+
+        Returns:
+            Good or Bad; True or False
+        """
         try:
             if self._config.get('profile'):
                 self._b3Sess = boto3.session.Session(profile_name=self._config.get('profile'))
@@ -262,13 +347,18 @@ class CloudStackUtility:
             traceback.print_exc(file=sys.stdout)
             return False
 
-    def get_template_file(self):
-        if self._config.get('templateFile'):
-            return self._config.get('templateFile')
-        else:
-            return ''
-
     def _create_stack_file_keys(self):
+        """
+        We are putting stuff into S3, were supplied the bucket. Here we
+        craft the key of the elements we are putting up there in the
+        internet clouds.
+
+        Args:
+            None
+
+        Returns:
+            a tuple of teplate file key and property file key
+        """
         now = time.gmtime()
         stub = "templates/{stack_name}/{version}".format(
             stack_name=self._config.get('stackName'),
