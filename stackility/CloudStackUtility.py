@@ -110,10 +110,13 @@ class CloudStackUtility:
 
             logging.info(' required parameters: ' + str(required_parameters))
             logging.info('available parameters: ' + str(available_parameters))
+
+            parameters = []
             for required_parameter in required_parameters:
                 parameter = {}
                 parameter['ParameterKey'] = str(required_parameter)
                 parameter['ParameterValue'] = self._parameters[str(required_parameter)]
+                parameters.append(parameter)
 
             if self._config.get('dryrun', False):
                 logging.info('This was a dryrun')
@@ -125,7 +128,7 @@ class CloudStackUtility:
                 stack = self._cloudFormation.update_stack(
                     StackName=self._config.get('stackName'),
                     TemplateURL=self._templateUrl,
-                    Parameters=self._stackParameters,
+                    Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
@@ -135,7 +138,7 @@ class CloudStackUtility:
                 stack = self._cloudFormation.create_stack(
                     StackName=self._config.get('stackName'),
                     TemplateURL=self._templateUrl,
-                    Parameters=self._stackParameters,
+                    Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
