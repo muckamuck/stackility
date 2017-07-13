@@ -52,7 +52,7 @@ class CloudStackUtility:
            not a damn thing
 
         Raises:
-            SystemError - if everything is'nt just right
+            SystemError - if everything isn't just right
         """
         if config_block:
             self._config = config_block
@@ -63,54 +63,20 @@ class CloudStackUtility:
         if not self._init_boto3_clients():
             logging.error('session initialization was not good')
             raise SystemError
-
-        if not self._initialize_parameters():
+        elif not self._fill_parameters():
             logging.error('parameter setup was not good')
             raise SystemError
-
-        if not self._initialize_tags():
+        elif not self._read_tags():
             logging.error('tags initialization was not good')
             raise SystemError
-
-        if not self._copy_stuff_to_S3():
+        elif not self._archive_elements():
             logging.error('saving stuff to S3 did not go well')
             raise SystemError
-
-        if not self._set_update():
+        elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
 
-    def poll_stack(self):
-        """
-        Spin in a loop while the Cloud Formation process either fails or succeeds
-
-        Args:
-            None
-
-        Returns:
-            Good or bad; True or False
-        """
-        logging.info('polling stack status, POLL_INTERVAL={}'.format(POLL_INTERVAL))
-        time.sleep(POLL_INTERVAL)
-        while True:
-            try:
-                response = self._cloudFormation.describe_stacks(StackName=self._config.get('stackName'))
-                stack = response['Stacks'][0]
-                current_status = stack['StackStatus']
-                logging.info('Current status of ' + self._config.get('stackName') + ': ' + current_status)
-                if current_status.endswith('COMPLETE') or current_status.endswith('FAILED'):
-                    if current_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
-                        return True
-                    else:
-                        return False
-
-                time.sleep(POLL_INTERVAL)
-            except Exception as wtf:
-                logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
-                traceback.print_exc(file=sys.stdout)
-                return False
-
-    def create_stack(self):
+    def upsert(self):
         """
         The main event of the utility. Create or update a Cloud Formation
         stack. Injecting properties where needed
@@ -152,8 +118,6 @@ class CloudStackUtility:
             if self._config.get('dryrun', False):
                 logging.info('This was a dryrun')
                 sys.exit(0)
-            else:
-                logging.info('a journey of a thousand miles begins with a single step')
 
             if self._updateStack:
                 self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
@@ -175,16 +139,43 @@ class CloudStackUtility:
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
-            logging.info(json.dumps(stack, indent=4, sort_keys=True))
+                logging.info('stack: {}'.format(json.dumps(stack,
+                                                           indent=4,
+                                                           sort_keys=True)))
         except Exception as x:
-            logging.error('Exception caught in create_stack(): {}'.format(x))
+            logging.error('Exception caught in upsert(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
 
             return False
 
         return True
 
-    def _initialize_parameters(self):
+    def _init_boto3_clients(self):
+        """
+        The utililty requires boto3 clients to Cloud Formation and S3. Here is
+        where we make them.
+
+        Args:
+            None
+
+        Returns:
+            Good or Bad; True or False
+        """
+        try:
+            if self._config.get('profile'):
+                self._b3Sess = boto3.session.Session(profile_name=self._config.get('profile'))
+            else:
+                self._b3Sess = boto3.session.Session()
+
+            self._s3 = self._b3Sess.client('s3')
+            self._cloudFormation = self._b3Sess.client('cloudformation', region_name=self._config.get('region'))
+            return True
+        except Exception as wtf:
+            logging.error('Exception caught in intialize_session(): {}'.format(wtf))
+            traceback.print_exc(file=sys.stdout)
+            return False
+
+    def _fill_parameters(self):
         """
         Fill in the _parameters dict from the properties file.
 
@@ -210,7 +201,7 @@ class CloudStackUtility:
 
         return True
 
-    def _initialize_tags(self):
+    def _read_tags(self):
         """
         Fill in the _tags dict from the tags file.
 
@@ -267,7 +258,7 @@ class CloudStackUtility:
         logging.info('update_stack: ' + str(self._updateStack))
         return True
 
-    def _copy_stuff_to_S3(self):
+    def _archive_elements(self):
         """
         Cloud Formation likes to take the template from S3 so here we put the
         template into S3. We also store the parameters file that was used in
@@ -283,7 +274,7 @@ class CloudStackUtility:
             really exist or the upload goes sideways.
         """
         try:
-            stackfile_key, propertyfile_key = self._create_stack_file_keys()
+            stackfile_key, propertyfile_key = self._craft_s3_keys()
 
             if not os.path.isfile(self._config.get('templateFile')):
                 logging.info(self._config.get('templateFile') + " not actually a file")
@@ -322,32 +313,7 @@ class CloudStackUtility:
             traceback.print_exc(file=sys.stdout)
             return False
 
-    def _init_boto3_clients(self):
-        """
-        The utililty requires boto3 clients to Cloud Formation and S3. Here is
-        where we make them.
-
-        Args:
-            None
-
-        Returns:
-            Good or Bad; True or False
-        """
-        try:
-            if self._config.get('profile'):
-                self._b3Sess = boto3.session.Session(profile_name=self._config.get('profile'))
-            else:
-                self._b3Sess = boto3.session.Session()
-
-            self._s3 = self._b3Sess.client('s3')
-            self._cloudFormation = self._b3Sess.client('cloudformation', region_name=self._config.get('region'))
-            return True
-        except Exception as wtf:
-            logging.error('Exception caught in intialize_session(): {}'.format(wtf))
-            traceback.print_exc(file=sys.stdout)
-            return False
-
-    def _create_stack_file_keys(self):
+    def _craft_s3_keys(self):
         """
         We are putting stuff into S3, were supplied the bucket. Here we
         craft the key of the elements we are putting up there in the
@@ -379,3 +345,33 @@ class CloudStackUtility:
 
         property_key = stub + "/stack.properties"
         return template_key, property_key
+
+    def poll_stack(self):
+        """
+        Spin in a loop while the Cloud Formation process either fails or succeeds
+
+        Args:
+            None
+
+        Returns:
+            Good or bad; True or False
+        """
+        logging.info('polling stack status, POLL_INTERVAL={}'.format(POLL_INTERVAL))
+        time.sleep(POLL_INTERVAL)
+        while True:
+            try:
+                response = self._cloudFormation.describe_stacks(StackName=self._config.get('stackName'))
+                stack = response['Stacks'][0]
+                current_status = stack['StackStatus']
+                logging.info('Current status of ' + self._config.get('stackName') + ': ' + current_status)
+                if current_status.endswith('COMPLETE') or current_status.endswith('FAILED'):
+                    if current_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
+                        return True
+                    else:
+                        return False
+
+                time.sleep(POLL_INTERVAL)
+            except Exception as wtf:
+                logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
+                traceback.print_exc(file=sys.stdout)
+                return False
