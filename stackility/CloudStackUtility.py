@@ -147,13 +147,11 @@ class CloudStackUtility:
             None
 
         Returns:
-            True if the stack create/update is started successfully else
-            False if the start goes off in the weeds.
+            True if True
 
-        Exits:
-            If the user asked for a dryrun exit(with a code 0) the thing here. There is no
-            point continuing after that point.
-
+        Todo:
+            Figure out what could go wrong and take steps
+            to hanlde problems.
         """
         self._initialize_list()
         interested = True
@@ -171,6 +169,8 @@ class CloudStackUtility:
                 response = self._cloudFormation.list_stacks(NextToken=next_token)
             else:
                 interested = False
+
+        return True
 
     def _init_boto3_clients(self):
         """
