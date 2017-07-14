@@ -2,9 +2,9 @@ import os
 from setuptools import setup, find_packages
 setup(
     name="Stackility",
-    version="0.1.0",
+    version="0.1.1",
     packages=['stackility'],
-    description='Python CloudFormation',
+    description='Python CloudFormation utility',
     author='Chuck Muckamuck',
     author_email='Chuck.Muckamuck@gmail.com',
     install_requires=[
