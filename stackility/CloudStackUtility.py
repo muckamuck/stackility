@@ -60,22 +60,6 @@ class CloudStackUtility:
             logging.error('config block was garbage')
             raise SystemError
 
-        if not self._init_boto3_clients():
-            logging.error('session initialization was not good')
-            raise SystemError
-        elif not self._fill_parameters():
-            logging.error('parameter setup was not good')
-            raise SystemError
-        elif not self._read_tags():
-            logging.error('tags initialization was not good')
-            raise SystemError
-        elif not self._archive_elements():
-            logging.error('saving stuff to S3 did not go well')
-            raise SystemError
-        elif not self._set_update():
-            logging.error('there was a problem determining update or create')
-            raise SystemError
-
     def upsert(self):
         """
         The main event of the utility. Create or update a Cloud Formation
@@ -93,6 +77,8 @@ class CloudStackUtility:
             point continuing after that point.
 
         """
+        self._initialize_upsert()
+
         required_parameters = []
         self._stackParameters = []
 
@@ -152,6 +138,39 @@ class CloudStackUtility:
             return False
 
         return True
+
+    def list(self):
+        """
+        List the existing stacks in the indicated region
+
+        Args:
+            None
+
+        Returns:
+            True if the stack create/update is started successfully else
+            False if the start goes off in the weeds.
+
+        Exits:
+            If the user asked for a dryrun exit(with a code 0) the thing here. There is no
+            point continuing after that point.
+
+        """
+        self._initialize_list()
+        interested = True
+
+        response = self._cloudFormation.list_stacks()
+        while interested:
+            if 'StackSummaries' in response:
+                for stack in response['StackSummaries']:
+                    stack_status = stack['StackStatus']
+                    if stack_status != 'DELETE_COMPLETE':
+                        print('Stack: {} - [{}]'.format(stack['StackName'], stack['StackStatus']))
+
+            next_token = response.get('NextToken', None)
+            if next_token:
+                response = self._cloudFormation.list_stacks(NextToken=next_token)
+            else:
+                interested = False
 
     def _init_boto3_clients(self):
         """
@@ -378,3 +397,25 @@ class CloudStackUtility:
                 logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
                 traceback.print_exc(file=sys.stdout)
                 return False
+
+    def _initialize_list(self):
+        if not self._init_boto3_clients():
+            logging.error('session initialization was not good')
+            raise SystemError
+
+    def _initialize_upsert(self):
+        if not self._init_boto3_clients():
+            logging.error('session initialization was not good')
+            raise SystemError
+        elif not self._fill_parameters():
+            logging.error('parameter setup was not good')
+            raise SystemError
+        elif not self._read_tags():
+            logging.error('tags initialization was not good')
+            raise SystemError
+        elif not self._archive_elements():
+            logging.error('saving stuff to S3 did not go well')
+            raise SystemError
+        elif not self._set_update():
+            logging.error('there was a problem determining update or create')
+            raise SystemError

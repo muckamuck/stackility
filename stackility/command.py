@@ -56,7 +56,7 @@ def upsert(version, tags, properties, template, region, bucket, profile, name, d
         command_line['dryrun'] = False
 
     print(json.dumps(command_line, indent=2))
-    start_work(command_line)
+    start_upsert(command_line)
 
 
 @cli.command()
@@ -65,7 +65,26 @@ def delete(stack):
     click.echo('delete called: {}'.format(stack))
 
 
-def start_work(command_line):
+@cli.command()
+@click.option('-r', '--region')
+@click.option('-f', '--profile')
+def list(region, profile):
+    command_line = {}
+    if region:
+        command_line['region'] = region
+    else:
+        command_line['region'] = find_myself()
+
+    if profile:
+        command_line['profile'] = profile
+
+    if start_list(command_line):
+        sys.exit(0)
+    else:
+        sys.exit(1)
+
+
+def start_upsert(command_line):
     stack_driver = CloudStackUtility(command_line)
     if stack_driver.upsert():
         logging.info('stack create/update was started successfully.')
@@ -78,6 +97,11 @@ def start_work(command_line):
     else:
         logging.error('start of stack create/update did not go well.')
         sys.exit(1)
+
+
+def start_list(command_line):
+    stack_driver = CloudStackUtility(command_line)
+    return stack_driver.list()
 
 
 def find_myself():
