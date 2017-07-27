@@ -1,4 +1,6 @@
 import boto3
+from botocore.exceptions import ClientError
+from bson import json_util
 import logging
 import sys
 import os
@@ -187,9 +189,23 @@ class CloudStackUtility:
             to hanlde problems.
         """
         self._initialize_smash()
-        logging.info(self._config)
-        r = self._cloudFormation.delete_stack(StackName=self._config['stackName'])
-        print('Delete returned: {}'.format(json.dumps(r, indent=4)))
+        try:
+            response = self._cloudFormation.describe_stacks(StackName=self._config.get('stackName'))
+            logging.debug('smash pre-flight returned: {}'.format(
+                json.dumps(response,
+                           indent=4,
+                           default=json_util.default
+                           )))
+        except ClientError as wtf:
+            logging.warning('your stack is in another castle [0].')
+            return False
+        except Exception as wtf:
+            logging.error('failed to find intial status of smash candidate: {}'.format(wtf))
+            return False
+
+        response = self._cloudFormation.delete_stack(StackName=self._config['stackName'])
+        logging.info('delete started for stack: {}'.format(self._config['stackName']))
+        logging.debug('delete_stack returned: {}'.format(json.dumps(response, indent=4)))
         return self.poll_stack()
 
     def _init_boto3_clients(self):
@@ -418,6 +434,14 @@ class CloudStackUtility:
                         return False
 
                 time.sleep(POLL_INTERVAL)
+            except ClientError as wtf:
+                if str(wtf).find('does not exist') == -1:
+                    logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
+                    traceback.print_exc(file=sys.stdout)
+                    return False
+                else:
+                    logging.info('{} is gone'.format(self._config.get('stackName')))
+                    return True
             except Exception as wtf:
                 logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
                 traceback.print_exc(file=sys.stdout)
