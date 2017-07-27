@@ -172,6 +172,26 @@ class CloudStackUtility:
 
         return True
 
+    def smash(self):
+        """
+        Smash the given stack
+
+        Args:
+            None
+
+        Returns:
+            True if True
+
+        Todo:
+            Figure out what could go wrong and take steps
+            to hanlde problems.
+        """
+        self._initialize_smash()
+        logging.info(self._config)
+        r = self._cloudFormation.delete_stack(StackName=self._config['stackName'])
+        print('Delete returned: {}'.format(json.dumps(r, indent=4)))
+        return self.poll_stack()
+
     def _init_boto3_clients(self):
         """
         The utililty requires boto3 clients to Cloud Formation and S3. Here is
@@ -380,6 +400,11 @@ class CloudStackUtility:
         """
         logging.info('polling stack status, POLL_INTERVAL={}'.format(POLL_INTERVAL))
         time.sleep(POLL_INTERVAL)
+        completed_states = [
+            'CREATE_COMPLETE',
+            'UPDATE_COMPLETE',
+            'DELETE_COMPLETE'
+        ]
         while True:
             try:
                 response = self._cloudFormation.describe_stacks(StackName=self._config.get('stackName'))
@@ -387,7 +412,7 @@ class CloudStackUtility:
                 current_status = stack['StackStatus']
                 logging.info('Current status of ' + self._config.get('stackName') + ': ' + current_status)
                 if current_status.endswith('COMPLETE') or current_status.endswith('FAILED'):
-                    if current_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']:
+                    if current_status in completed_states:
                         return True
                     else:
                         return False
@@ -399,6 +424,11 @@ class CloudStackUtility:
                 return False
 
     def _initialize_list(self):
+        if not self._init_boto3_clients():
+            logging.error('session initialization was not good')
+            raise SystemError
+
+    def _initialize_smash(self):
         if not self._init_boto3_clients():
             logging.error('session initialization was not good')
             raise SystemError

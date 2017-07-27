@@ -61,8 +61,23 @@ def upsert(version, tags, properties, template, region, bucket, profile, name, d
 
 @cli.command()
 @click.option('-s', '--stack', required=True)
-def delete(stack):
-    click.echo('delete called: {}'.format(stack))
+@click.option('-r', '--region')
+@click.option('-f', '--profile')
+def delete(stack, region, profile):
+    command_line = {}
+    command_line['stackName'] = stack
+    if region:
+        command_line['region'] = region
+    else:
+        command_line['region'] = find_myself()
+
+    if profile:
+        command_line['profile'] = profile
+
+    if start_smash(command_line):
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 @cli.command()
@@ -102,6 +117,11 @@ def start_upsert(command_line):
 def start_list(command_line):
     stack_driver = CloudStackUtility(command_line)
     return stack_driver.list()
+
+
+def start_smash(command_line):
+    stack_driver = CloudStackUtility(command_line)
+    return stack_driver.smash()
 
 
 def find_myself():
