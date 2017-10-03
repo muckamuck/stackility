@@ -20,7 +20,7 @@ def cli():
 @cli.command()
 @click.option('--version', '-v', help='code version', required=True)
 @click.option('--tags', '-g', help='tags file, key/valye pairs', type=click.File('rb'), required=True)
-@click.option('--properties', '-p', help='properties file to inject into stack parameters', type=click.File('rb'), required=True)
+@click.option('--properties', '-p', help='properties file to inject into stack parameters', type=click.File('rb'))
 @click.option('--template', '-t', help='template file', type=click.File('rb'), required=True)
 @click.option('--region', '-r', help='AWS region')
 @click.option('--bucket', '-b', help='bucket for stuff', required=True)
@@ -34,7 +34,10 @@ def upsert(version, tags, properties, template, region, bucket, profile, name, d
     command_line['destinationBucket'] = bucket
     command_line['templateFile'] = template.name
     command_line['tagFile'] = tags.name
-    command_line['parameterFile'] = properties.name
+
+    if properties:
+        command_line['parameterFile'] = properties.name
+
     command_line['codeVersion'] = version
 
     if profile:

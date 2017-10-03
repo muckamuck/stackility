@@ -1,6 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 from bson import json_util
+import getpass
 import logging
 import sys
 import os
@@ -20,17 +21,23 @@ try:
 except:
     POLL_INTERVAL = 30
 
-logging.basicConfig(level=logging.INFO,
-                    format='[%(levelname)s] %(asctime)s (%(module)s) %(message)s',
-                    datefmt='%Y/%m/%d-%H:%M:%S')
+logging_level = logging.INFO
 
-logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(
+    level=logging_level,
+    format='[%(levelname)s] %(asctime)s (%(module)s) %(message)s',
+    datefmt='%Y/%m/%d-%H:%M:%S'
+)
+
+logging.getLogger().setLevel(logging_level)
 
 
 class CloudStackUtility:
     """
     Cloud stack utility is yet another tool create AWS Cloudformation stacks.
     """
+    ASK = '[ask]'
+    _template = None
     _b3Sess = None
     _cloudFormation = None
     _config = None
@@ -86,14 +93,8 @@ class CloudStackUtility:
 
         try:
             available_parameters = self._parameters.keys()
-            if self._config.get('yaml'):
-                with open(self._config.get('templateFile'), 'r') as f:
-                    template = yaml.load(f, Loader=Loader)
-            else:
-                json_stuff = open(self._config.get('templateFile'))
-                template = json.load(json_stuff)
 
-            for parameter_name in template['Parameters']:
+            for parameter_name in self._template['Parameters']:
                 required_parameters.append(str(parameter_name))
 
             logging.info(' required parameters: ' + str(required_parameters))
@@ -137,6 +138,21 @@ class CloudStackUtility:
             logging.error('Exception caught in upsert(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
 
+            return False
+
+        return True
+
+    def _load_template(self):
+        try:
+            if self._config.get('yaml'):
+                with open(self._config.get('templateFile'), 'r') as f:
+                    self._template = yaml.load(f, Loader=Loader)
+            else:
+                json_stuff = open(self._config.get('templateFile'))
+                self._template = json.load(json_stuff)
+        except Exception as x:
+            logging.error('Exception caught in load_template(): {}'.format(x))
+            traceback.print_exc(file=sys.stdout)
             return False
 
         return True
@@ -233,6 +249,21 @@ class CloudStackUtility:
             traceback.print_exc(file=sys.stdout)
             return False
 
+    def _fill_defaults(self):
+        try:
+            parms = self._template['Parameters']
+            for key in parms:
+                key = str(key)
+                if 'Default' in parms[key]:
+                    self._parameters[key] = parms[key]['Default']
+
+        except Exception as wtf:
+            logging.error('Exception caught in fill_defaults(): {}'.format(wtf))
+            traceback.print_exc(file=sys.stdout)
+            return False
+
+        return True
+
     def _fill_parameters(self):
         """
         Fill in the _parameters dict from the properties file.
@@ -244,16 +275,35 @@ class CloudStackUtility:
             True
 
         Todo:
-            Figure what could go wrong and at least acknowledge the
-            the fact that Murphy was an optimist.
+            Figure out what could go wrong and at least acknowledge the the
+            fact that Murphy was an optimist.
         """
+        self._fill_defaults()
+        if 'parameterFile' not in self._config:
+            return True
+
         with open(self._config.get('parameterFile')) as f:
             wrk = f.readline()
             while wrk:
                 wrk = wrk.rstrip()
                 key_val = wrk.split('=')
                 if len(key_val) == 2:
-                    self._parameters[key_val[0]] = key_val[1]
+                    k = key_val[0]
+                    v = key_val[1]
+                    if v == self.ASK:
+                        a1 = '__x___'
+                        a2 = '__y___'
+                        prompt1 = "Enter value for '{}': ".format(k)
+                        prompt2 = "Confirm value for '{}': ".format(k)
+                        while a1 != a2:
+                            a1 = getpass.getpass(prompt=prompt1)
+                            a2 = getpass.getpass(prompt=prompt2)
+                            if a1 == a2:
+                                v = a1
+                            else:
+                                print('values do not match, try again')
+
+                    self._parameters[k] = v
 
                 wrk = f.readline()
 
@@ -338,16 +388,21 @@ class CloudStackUtility:
                 logging.info(self._config.get('templateFile') + " not actually a file")
                 return False
 
-            logging.info("Copying " +
-                         self._config.get('parameterFile') +
-                         " to " + "s3://" +
-                         self._config.get('destinationBucket') +
-                         "/" +
-                         propertyfile_key)
+            if 'parameterFile' in self._config:
+                logging.info(
+                    "Copying " +
+                    self._config.get('parameterFile') +
+                    " to " + "s3://" +
+                    self._config.get('destinationBucket') +
+                    "/" +
+                    propertyfile_key
+                )
 
-            self._s3.upload_file(self._config.get('parameterFile'),
-                                 self._config.get('destinationBucket'),
-                                 propertyfile_key)
+                self._s3.upload_file(
+                    self._config.get('parameterFile'),
+                    self._config.get('destinationBucket'),
+                    propertyfile_key
+                )
 
             logging.info("Copying " +
                          self._config.get('templateFile') +
@@ -458,7 +513,10 @@ class CloudStackUtility:
             raise SystemError
 
     def _initialize_upsert(self):
-        if not self._init_boto3_clients():
+        if not self._load_template():
+            logging.error('template initialization was not good')
+            raise SystemError
+        elif not self._init_boto3_clients():
             logging.error('session initialization was not good')
             raise SystemError
         elif not self._fill_parameters():
