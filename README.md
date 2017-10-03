@@ -7,12 +7,22 @@ Example:
 
 ```db_password=[ask]```
 
+This will ask for (and not echo) the values when a stack upsert is done.
 
 #### Development notes:
 
-* virtualenv stkvenv
-* . stkenv/bin/activate
-* pip install --editable .
+Do some work on the thing:
+```bash
+virtualenv stkvenv
+. stkenv/bin/activate
+pip install --editable .
+```
+
+Publish the thing:
+```bash
+python setup.py sdist bdist_wheel
+twine upload dist/*
+```
 
 #### Environment notes:
 By default the utility polls the status of stack operation every 30 seconds. If
