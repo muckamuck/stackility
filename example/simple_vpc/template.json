@@ -16,6 +16,11 @@
             "Default": "10.11.10.0/24",
             "Description": "The CIDR block of our new friend",
             "Type": "String"
+        },
+        "extra": {
+            "Default": "42",
+            "Description": "Extra bits",
+            "Type": "String"
         }
     },
     "Resources": {
