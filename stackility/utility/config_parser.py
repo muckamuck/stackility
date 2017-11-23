@@ -1,7 +1,5 @@
 import ConfigParser
 import logging
-import traceback
-import sys
 import json
 
 
@@ -19,23 +17,27 @@ def read_config_info(ini_file):
         return the_stuff
     except Exception as wtf:
         logging.error('Exception caught in read_config_info(): {}'.format(wtf))
-        traceback.print_exc(file=sys.stdout)
         return None
 
 
 def reformat_stuff(old_stuff):
-    new_stuff = {}
-    for key in old_stuff.keys():
-        wrk = key.split(':')
-        section_key = wrk[0]
+    try:
+        new_stuff = {}
+        for key in old_stuff.keys():
+            wrk = key.split(':')
+            section_key = wrk[0]
 
-        if section_key not in new_stuff:
-            new_stuff[section_key] = {}
+            if section_key not in new_stuff:
+                new_stuff[section_key] = {}
 
-        if len(wrk) == 1:
-            new_stuff[section_key]['properties'] = old_stuff[key]
-        elif len(wrk) == 2:
-            new_stuff[section_key]['tags'] = old_stuff[key]
+            if len(wrk) == 1:
+                new_stuff[section_key]['properties'] = old_stuff[key]
+            elif len(wrk) == 2:
+                if wrk[1] == 'tags' or wrk[1] == 'tag':
+                    new_stuff[section_key]['tags'] = old_stuff[key]
+    except Exception as wtf:
+        logging.error('Exception caught in reformat_stuff(): {}'.format(wtf))
+        return None
 
     return new_stuff
 
