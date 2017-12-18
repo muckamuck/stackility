@@ -4,11 +4,14 @@ The command line interface to stackility.
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from stackility import CloudStackUtility
+import ConfigParser
 import click
+import time
 import json
 import boto3
 import logging
 import sys
+import traceback
 
 
 @click.group()
@@ -18,48 +21,36 @@ def cli():
 
 
 @cli.command()
-@click.option('--version', '-v', help='code version', required=True)
-@click.option('--tags', '-g', help='tags file, key/valye pairs', type=click.File('rb'), required=True)
-@click.option('--properties', '-p', help='properties file to inject into stack parameters', type=click.File('rb'))
-@click.option('--template', '-t', help='template file', type=click.File('rb'), required=True)
-@click.option('--region', '-r', help='AWS region')
-@click.option('--bucket', '-b', help='bucket for stuff', required=True)
-@click.option('--profile', '-f', help='AWS CLI profile')
-@click.option('--name', '-n', help='stack_name', required=True)
+@click.option('--version', '-v', help='code version')
+@click.option('--ini', '-i', help='INI file with needed information', required=True)
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
 @click.option('--yaml', '-y', help='YAML template', is_flag=True)
-def upsert(version, tags, properties, template, region, bucket, profile, name, dryrun, yaml):
-    command_line = {}
-    command_line['stackName'] = name
-    command_line['destinationBucket'] = bucket
-    command_line['templateFile'] = template.name
-    command_line['tagFile'] = tags.name
+def upsert(version, ini, dryrun, yaml):
+    ini_data = read_config_info(ini)
+    if 'environment' not in ini_data:
+        print('[environment] section is required in the INI file')
+        sys.exit(1)
 
-    if properties:
-        command_line['parameterFile'] = properties.name
-
-    command_line['codeVersion'] = version
-
-    if profile:
-        command_line['profile'] = profile
-
-    if region:
-        command_line['region'] = region
+    if version:
+        ini_data['codeVersion'] = version
     else:
-        command_line['region'] = find_myself()
+        ini_data['codeVersion'] = str(int(time.time()))
+
+    if 'region' not in ini_data['environment']:
+        ini_data['environment']['region'] = find_myself()
 
     if yaml:
-        command_line['yaml'] = True
+        ini_data['yaml'] = True
     else:
-        command_line['yaml'] = False
+        ini_data['yaml'] = False
 
     if dryrun:
-        command_line['dryrun'] = True
+        ini_data['dryrun'] = True
     else:
-        command_line['dryrun'] = False
+        ini_data['dryrun'] = False
 
-    print(json.dumps(command_line, indent=2))
-    start_upsert(command_line)
+    print(json.dumps(ini_data, indent=2))
+    start_upsert(ini_data)
 
 
 @cli.command()
@@ -67,17 +58,21 @@ def upsert(version, tags, properties, template, region, bucket, profile, name, d
 @click.option('-r', '--region')
 @click.option('-f', '--profile')
 def delete(stack, region, profile):
-    command_line = {}
-    command_line['stackName'] = stack
+    ini_data = {}
+    environment = {}
+
+    environment['stack_name'] = stack
     if region:
-        command_line['region'] = region
+        environment['region'] = region
     else:
-        command_line['region'] = find_myself()
+        environment['region'] = find_myself()
 
     if profile:
-        command_line['profile'] = profile
+        environment['profile'] = profile
 
-    if start_smash(command_line):
+    ini_data['environment'] = environment
+
+    if start_smash(ini_data):
         sys.exit(0)
     else:
         sys.exit(1)
@@ -87,23 +82,26 @@ def delete(stack, region, profile):
 @click.option('-r', '--region')
 @click.option('-f', '--profile')
 def list(region, profile):
-    command_line = {}
+    ini_data = {}
+    environment = {}
+
     if region:
-        command_line['region'] = region
+        environment['region'] = region
     else:
-        command_line['region'] = find_myself()
+        environment['region'] = find_myself()
 
     if profile:
-        command_line['profile'] = profile
+        environment['profile'] = profile
 
-    if start_list(command_line):
+    ini_data['environment'] = environment
+    if start_list(ini_data):
         sys.exit(0)
     else:
         sys.exit(1)
 
 
-def start_upsert(command_line):
-    stack_driver = CloudStackUtility(command_line)
+def start_upsert(ini_data):
+    stack_driver = CloudStackUtility(ini_data)
     if stack_driver.upsert():
         logging.info('stack create/update was started successfully.')
         if stack_driver.poll_stack():
@@ -130,3 +128,24 @@ def start_smash(command_line):
 def find_myself():
     s = boto3.session.Session()
     return s.region_name
+
+
+def read_config_info(ini_file):
+    try:
+        config = ConfigParser.ConfigParser()
+        config.read(ini_file)
+        the_stuff = {}
+        for section in config.sections():
+            the_stuff[section] = {}
+            for option in config.options(section):
+                the_stuff[section][option] = config.get(section, option)
+
+        return the_stuff
+    except Exception as wtf:
+        logging.error('Exception caught in read_config_info(): {}'.format(wtf))
+        traceback.print_exc(file=sys.stdout)
+        return sys.exit(1)
+
+
+def validate_config_info():
+    return True
