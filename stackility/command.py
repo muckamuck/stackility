@@ -4,6 +4,7 @@ The command line interface to stackility.
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from stackility import CloudStackUtility
+from utility import read_config_info #noqa
 import click
 import json
 import boto3
@@ -15,6 +16,35 @@ import sys
 @click.version_option(version='0.2.0')
 def cli():
     pass
+
+
+'''
+@cli.command()
+@click.option('--version', '-v', help='code version')
+@click.option('--config', '-c', help='config file to create/update the stack', type=click.File('rb'))
+@click.option('--environment', '-e', help='section in the config file', required=True)
+@click.option('--region', '-r', help='AWS region')
+@click.option('--profile', '-f', help='AWS CLI profile')
+@click.option('--dryrun', '-d', help='dry run', is_flag=True)
+@click.option('--yaml', '-y', help='YAML template', is_flag=True)
+
+[env]
+param1=value1
+.
+.
+.
+paramN=valueN
+bucket=s3 bucket
+name=stack name
+
+
+[env:tags]
+tag1=value1
+.
+.
+.
+tagN=valueN
+'''
 
 
 @cli.command()
