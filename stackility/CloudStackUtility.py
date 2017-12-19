@@ -11,6 +11,7 @@ import yaml
 import traceback
 import uuid
 
+
 try:
     from yaml import CLoader as Loader
 except ImportError:
@@ -105,7 +106,7 @@ class CloudStackUtility:
             for required_parameter in required_parameters:
                 parameter = {}
                 parameter['ParameterKey'] = str(required_parameter)
-                parameter['ParameterValue'] = self._parameters[str(required_parameter)]
+                parameter['ParameterValue'] = self._parameters[str(required_parameter).lower()]
                 parameters.append(parameter)
 
             if self._config.get('dryrun', False):
