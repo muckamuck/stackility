@@ -2,7 +2,7 @@ from stackility.CloudStackUtility import CloudStackUtility #noqa
 from datetime import datetime
 
 __title__ = 'stackility'
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 __author__ = 'Mr. Chuck Muckamuck'
 __author_email__ = 'chuck.muckamuck@gmail.com'
 __license__ = '''MIT License
