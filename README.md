@@ -28,3 +28,8 @@ twine upload dist/*
 By default the utility polls the status of stack operation every 30 seconds. If
 needed ```CSU_POLL_INTERVAL``` can be set to a number of seconds to override the 
 poll interval
+
+#### TODO:
+
+* add optional ```[parameter:ssm]``` section to the INI format
+* print CloudFormation Outputs at the end of the upsert command
