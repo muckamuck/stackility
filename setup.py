@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(
     name="Stackility",
-    version='0.3.1',
+    version='0.3.2',
     packages=['stackility'],
     description='Python CloudFormation utility',
     author='Chuck Muckamuck',
