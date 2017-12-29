@@ -22,10 +22,11 @@ def cli():
 
 @cli.command()
 @click.option('--version', '-v', help='code version')
+@click.option('--stack', '-s', help='stack name')
 @click.option('--ini', '-i', help='INI file with needed information', required=True)
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
 @click.option('--yaml', '-y', help='YAML template', is_flag=True)
-def upsert(version, ini, dryrun, yaml):
+def upsert(version, stack, ini, dryrun, yaml):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -48,6 +49,9 @@ def upsert(version, ini, dryrun, yaml):
         ini_data['dryrun'] = True
     else:
         ini_data['dryrun'] = False
+
+    if stack:
+        ini_data['environment']['stack_name'] = stack
 
     print(json.dumps(ini_data, indent=2))
     start_upsert(ini_data)

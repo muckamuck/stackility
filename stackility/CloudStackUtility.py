@@ -39,6 +39,7 @@ class CloudStackUtility:
     Cloud stack utility is yet another tool create AWS Cloudformation stacks.
     """
     ASK = '[ask]'
+    _verbose = False
     _template = None
     _b3Sess = None
     _cloudFormation = None
@@ -88,10 +89,14 @@ class CloudStackUtility:
             point continuing after that point.
 
         """
-        self._initialize_upsert()
 
         required_parameters = []
         self._stackParameters = []
+
+        try:
+            self._initialize_upsert()
+        except Exception:
+            return False
 
         try:
             available_parameters = self._parameters.keys()
@@ -106,7 +111,13 @@ class CloudStackUtility:
             for required_parameter in required_parameters:
                 parameter = {}
                 parameter['ParameterKey'] = str(required_parameter)
-                parameter['ParameterValue'] = self._parameters[str(required_parameter).lower()]
+
+                required_parameter = str(required_parameter)
+                if required_parameter in self._parameters:
+                    parameter['ParameterValue'] = self._parameters[required_parameter]
+                else:
+                    parameter['ParameterValue'] = self._parameters[required_parameter.lower()]
+
                 parameters.append(parameter)
 
             if self._config.get('dryrun', False):
@@ -138,7 +149,8 @@ class CloudStackUtility:
                                                            sort_keys=True)))
         except Exception as x:
             logging.error('Exception caught in upsert(): {}'.format(x))
-            traceback.print_exc(file=sys.stdout)
+            if self._verbose:
+                traceback.print_exc(file=sys.stdout)
 
             return False
 
@@ -178,12 +190,13 @@ class CloudStackUtility:
         interested = True
 
         response = self._cloudFormation.list_stacks()
+        print('Stack(s):')
         while interested:
             if 'StackSummaries' in response:
                 for stack in response['StackSummaries']:
                     stack_status = stack['StackStatus']
                     if stack_status != 'DELETE_COMPLETE':
-                        print('Stack: {} - [{}]'.format(stack['StackName'], stack['StackStatus']))
+                        print('    [{}] - {}'.format(stack['StackStatus'], stack['StackName']))
 
             next_token = response.get('NextToken', None)
             if next_token:
@@ -486,8 +499,21 @@ class CloudStackUtility:
             logging.error('session initialization was not good')
             raise SystemError
 
+    def _validate_ini_data(self):
+        if 'stack_name' not in self._config.get('environment', {}):
+            return False
+        elif 'bucket' not in self._config.get('environment', {}):
+            return False
+        elif 'template' not in self._config.get('environment', {}):
+            return False
+        else:
+            return True
+
     def _initialize_upsert(self):
-        if not self._load_template():
+        if not self._validate_ini_data():
+            logging.error('INI file missing required bits; bucket and/or template and/or stack_name')
+            raise SystemError
+        elif not self._load_template():
             logging.error('template initialization was not good')
             raise SystemError
         elif not self._init_boto3_clients():
