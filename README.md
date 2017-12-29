@@ -33,3 +33,5 @@ poll interval
 
 * add optional ```[parameter:ssm]``` section to the INI format
 * print CloudFormation Outputs at the end of the upsert command
+* the example directory sucks; fix it
+* write something about the INI file usage for upsert
