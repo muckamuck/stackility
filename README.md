@@ -13,7 +13,7 @@ Options:
   -y, --yaml          YAML template
   --help              Show this message and exit.
 ```
-* See below Properties section below for description about INI file format *
+See the *Properties* section below for description about INI file format.
 
 ```
 stackility delete [OPTIONS]
@@ -38,25 +38,25 @@ Options:
 The INI file fed to the ```upsert``` command has the followning sections:
 
 **[environment]:**
-The environment for the creation/update of a CloudFormation stack. These the following 
+The environment for the creation/update of a CloudFormation stack. These are the following 
 elements of this section:
 
-* bucket - an S3 bucket where the template can be uploaded [required]
-* template - the name of the CloudFormation to be used in the operation [required]
-* stack_name - the name of the stack. If this element is not present the the ```--stack``` argument must be given [optional]
-* region - specify the target region for this stack. [optional]
-* profile - the credentials profile to be used [optional]
+* bucket - an S3 bucket where the template can be uploaded *[required]*
+* template - the name of the CloudFormation to be used in the operation *[required]*
+* stack_name - the name of the stack. If this element is not present the the ```--stack``` argument must be given *[optional]*
+* region - specify the target region for this stack *[optional]*
+* profile - the credentials profile to be used *[optional]*
 
 **[tags]** - key/value pairs that will be created as tags on the stack and supported resources.
-**[parameters]** - key/value pairs that will be injected as parameter for the stack
 
+**[parameters]** - key/value pairs that will be injected as parameter(s) for the stack. There are two special ways to specify
+the value in this section:
 
-Note: if there are *secret* property values you can specify the value as ```[ask]```
-Example:
+* [ask] - this will ask for (and not echo) the values when a stack upsert is done (example below). 
+* [ssm:<SSM-PARAMETER>] - specify a parameter key that will be used to retrieve the value from [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html)
 
-```db_password=[ask]```
+**Example parameters file:**
 
-This will ask for (and not echo) the values when a stack upsert is done.
 
 #### Development notes:
 
