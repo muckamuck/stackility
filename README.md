@@ -121,3 +121,4 @@ twine upload dist/*
 
 * print CloudFormation Outputs at the end of the upsert command
 * the example directory sucks; fix it
+* investigate giving an IAM role, something like the profile  selection
