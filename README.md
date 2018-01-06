@@ -34,7 +34,7 @@ Options:
   --help              Show this message and exit.
 ```
 
-#### Properties
+#### Properties:
 The INI file fed to the ```upsert``` command has the followning sections:
 
 **[environment]:**
@@ -43,15 +43,15 @@ elements of this section:
 
 * bucket - an S3 bucket where the template can be uploaded *[required]*
 * template - the name of the CloudFormation to be used in the operation *[required]*
-* stack_name - the name of the stack. If this element is not present the the
+* stack_name - the name of the stack. If this element is not present then the
 ```--stack``` argument must be given *[optional]*
 * region - specify the target region for this stack *[optional]*
 * profile - the credentials profile to be used *[optional]*
 
-**[tags]** - key/value pairs that will be created as tags on the stack and
+**[tags]:** - key/value pairs that will be created as tags on the stack and
 supported resources.
 
-**[parameters]** - key/value pairs that will be injected as parameter(s) for the
+**[parameters]:** - key/value pairs that will be injected as parameter(s) for the
 stack. You can, of course, enter the values as text. However, there are two
 special ways to specify the value in this section:
 
@@ -60,7 +60,7 @@ done (example below).
 * [ssm:<SSM-PARAMETER>] - specify a parameter key that will be used to retrieve
 the value from [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html)
 
-**Example parameters file:**
+#### Example parameters file:
 ```
 [environment]
 template=template.json
@@ -81,6 +81,17 @@ bar=some value
 db_password=[ask]
 api_key=[ssm:api_key]
 ```
+
+#### Example invocations:
+```stackility upsert --ini vpc_stack.ini --region us-east-2```
+
+Use the template in vpc_stack.ini to create a VPC in the us-east-2 region.
+
+```stackility upsert --ini vpc_stack.ini --region us-east-2 --profile batman```
+
+Use the template in vpc_stack.ini to create a VPC in the us-east-2 region with
+the credentials detailed int he batman profile.
+
 
 
 #### Development notes:
