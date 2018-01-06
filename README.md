@@ -13,6 +13,7 @@ Options:
   -y, --yaml          YAML template
   --help              Show this message and exit.
 ```
+* See below Properties section below for description about INI file format *
 
 ```
 stackility delete [OPTIONS]
@@ -34,6 +35,13 @@ Options:
 ```
 
 #### Properties
+The INI file fed to the ```upsert``` command has the followning sections:
+
+* ```[environment]``` - the environment for the creation/update of a CloudFormation stack
+* ```[tags]``` - key/value pairs that will be created as tags on the stack and supported resources.
+* ```[parameters]``` - key/value pairs that will be injected as parameter for the stack
+
+
 Note: if there are *secret* property values you can specify the value as ```[ask]```
 Example:
 
