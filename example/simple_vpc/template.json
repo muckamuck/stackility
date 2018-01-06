@@ -9,7 +9,7 @@
         "azOne": {
             "Description": "The AZ for the first subnet, taken from Default",
             "Type": "String",
-            "Default": "us-east-1a"
+            "Default": "us-west-2a"
         },
         "subnetCIDROne": {
             "Description": "The CIDR block of our new friend",

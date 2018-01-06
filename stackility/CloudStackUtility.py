@@ -39,6 +39,7 @@ class CloudStackUtility:
     Cloud stack utility is yet another tool create AWS Cloudformation stacks.
     """
     ASK = '[ask]'
+    SSM = '[ssm:'
     _verbose = False
     _template = None
     _b3Sess = None
@@ -47,6 +48,7 @@ class CloudStackUtility:
     _parameters = {}
     _stackParameters = []
     _s3 = None
+    _ssm = None
     _tags = []
     _templateUrl = None
     _updateStack = False
@@ -262,6 +264,8 @@ class CloudStackUtility:
 
             self._s3 = self._b3Sess.client('s3')
             self._cloudFormation = self._b3Sess.client('cloudformation', region_name=region)
+            self._ssm = self._b3Sess.client('ssm', region_name=region)
+
             return True
         except Exception as wtf:
             logging.error('Exception caught in intialize_session(): {}'.format(wtf))
@@ -283,6 +287,38 @@ class CloudStackUtility:
 
         return True
 
+    def _get_ssm_parameter(self, p):
+        """
+        Get parameters from Simple Systems Manager
+
+        Args:
+            p - a parameter name
+
+        Returns:
+            a value, decrypted if needed, if successful or None if things go
+            sideways.
+        """
+        val = None
+        secure_string = False
+        try:
+            response = self._ssm.describe_parameters(
+                Filters=[{'Key': 'Name', 'Values': [p]}]
+            )
+
+            if 'Parameters' in response:
+                t = response['Parameters'][0].get('Type', None)
+                if t == 'String':
+                    secure_string = False
+                elif t == 'SecureString':
+                    secure_string = True
+
+                response = self._ssm.get_parameter(Name=p, WithDecryption=secure_string)
+                val = response.get('Parameter', {}).get('Value', None)
+        except Exception:
+            pass
+
+        return val
+
     def _fill_parameters(self):
         """
         Fill in the _parameters dict from the properties file.
@@ -301,7 +337,16 @@ class CloudStackUtility:
         self._fill_defaults()
 
         for k in self._parameters.keys():
-            if self._parameters[k] == self.ASK:
+            if self._parameters[k].startswith(self.SSM) and self._parameters[k].endswith(']'):
+                parts = self._parameters[k].split(':')
+                tmp = parts[1].replace(']', '')
+                val = self._get_ssm_parameter(tmp)
+                if val:
+                    self._parameters[k] = val
+                else:
+                    logging.error('SSM parameter {} not found'.format(tmp))
+                    return False
+            elif self._parameters[k] == self.ASK:
                 val = None
                 a1 = '__x___'
                 a2 = '__y___'
