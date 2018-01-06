@@ -84,14 +84,13 @@ api_key=[ssm:api_key]
 
 #### Example invocations:
 ```stackility upsert --ini vpc_stack.ini --region us-east-2```
+use the template in vpc_stack.ini to create a VPC in the us-east-2 region.
 
-Use the template in vpc_stack.ini to create a VPC in the us-east-2 region.
+```stackility delete --stack example-stack --region us-east-2```
+tear down the example-stack stack from us-east-2
 
-```stackility upsert --ini vpc_stack.ini --region us-east-2 --profile batman```
-
-Use the template in vpc_stack.ini to create a VPC in the us-east-2 region with
-the credentials detailed int he batman profile.
-
+```stackility list --region us-east-2```
+list the CloudFormation stacks in us-east-2
 
 
 #### Development notes:
