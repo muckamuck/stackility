@@ -84,14 +84,23 @@ api_key=[ssm:api_key]
 
 #### Example invocations:
 ```stackility upsert --ini vpc_stack.ini --region us-east-2```
-use the template in vpc_stack.ini to create a VPC in the us-east-2 region.
+
+* use the template in vpc_stack.ini to create a VPC in the us-east-2 region.
 
 ```stackility delete --stack example-stack --region us-east-2```
-tear down the example-stack stack from us-east-2
+
+* tear down the example-stack stack from us-east-2
 
 ```stackility list --region us-east-2```
-list the CloudFormation stacks in us-east-2
 
+* list the CloudFormation stacks in us-east-2
+
+#### Environment notes:
+By default the utility polls the status of stack operation every 30 seconds. If
+needed ```CSU_POLL_INTERVAL``` can be set to a number of seconds to override the 
+poll interval
+
+---
 
 #### Development notes:
 
@@ -107,11 +116,6 @@ Publish the thing:
 python setup.py sdist bdist_wheel
 twine upload dist/*
 ```
-
-#### Environment notes:
-By default the utility polls the status of stack operation every 30 seconds. If
-needed ```CSU_POLL_INTERVAL``` can be set to a number of seconds to override the 
-poll interval
 
 #### TODO:
 
