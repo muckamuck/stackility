@@ -37,9 +37,18 @@ Options:
 #### Properties
 The INI file fed to the ```upsert``` command has the followning sections:
 
-* ```[environment]``` - the environment for the creation/update of a CloudFormation stack
-* ```[tags]``` - key/value pairs that will be created as tags on the stack and supported resources.
-* ```[parameters]``` - key/value pairs that will be injected as parameter for the stack
+**[environment]:**
+The environment for the creation/update of a CloudFormation stack. These the following 
+elements of this section:
+
+* bucket - an S3 bucket where the template can be uploaded [required]
+* template - the name of the CloudFormation to be used in the operation [required]
+* stack_name - the name of the stack. If this element is not present the the ```--stack``` argument must be given [optional]
+* region - specify the target region for this stack. [optional]
+* profile - the credentials profile to be used [optional]
+
+**[tags]** - key/value pairs that will be created as tags on the stack and supported resources.
+**[parameters]** - key/value pairs that will be injected as parameter for the stack
 
 
 Note: if there are *secret* property values you can specify the value as ```[ask]```
