@@ -277,7 +277,7 @@ class CloudStackUtility:
             parms = self._template['Parameters']
             for key in parms:
                 key = str(key)
-                if 'Default' in parms[key]:
+                if 'Default' in parms[key] and key not in self._parameters:
                     self._parameters[key] = parms[key]['Default']
 
         except Exception as wtf:

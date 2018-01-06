@@ -11,6 +11,16 @@
             "Type": "String",
             "Default": "us-west-2a"
         },
+        "bar": {
+            "Description": "Bar",
+            "Type": "String",
+            "Default": "default_value"
+        },
+        "baz": {
+            "Description": "Baz",
+            "Type": "String",
+            "Default": "default_baz_value"
+        },
         "subnetCIDROne": {
             "Description": "The CIDR block of our new friend",
             "Type": "String"
