@@ -13,7 +13,7 @@ Options:
   -y, --yaml          YAML template
   --help              Show this message and exit.
 ```
-See the *Properties* section below for description about INI file format.
+See the *Properties* section below for a description about INI file format.
 
 ```
 stackility delete [OPTIONS]
@@ -43,19 +43,44 @@ elements of this section:
 
 * bucket - an S3 bucket where the template can be uploaded *[required]*
 * template - the name of the CloudFormation to be used in the operation *[required]*
-* stack_name - the name of the stack. If this element is not present the the ```--stack``` argument must be given *[optional]*
+* stack_name - the name of the stack. If this element is not present the the
+```--stack``` argument must be given *[optional]*
 * region - specify the target region for this stack *[optional]*
 * profile - the credentials profile to be used *[optional]*
 
-**[tags]** - key/value pairs that will be created as tags on the stack and supported resources.
+**[tags]** - key/value pairs that will be created as tags on the stack and
+supported resources.
 
-**[parameters]** - key/value pairs that will be injected as parameter(s) for the stack. There are two special ways to specify
-the value in this section:
+**[parameters]** - key/value pairs that will be injected as parameter(s) for the
+stack. You can, of course, enter the values as text. However, there are two
+special ways to specify the value in this section:
 
-* [ask] - this will ask for (and not echo) the values when a stack upsert is done (example below). 
-* [ssm:<SSM-PARAMETER>] - specify a parameter key that will be used to retrieve the value from [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html)
+* [ask] - this will ask for (and not echo) the values when a stack upsert is
+done (example below). 
+* [ssm:<SSM-PARAMETER>] - specify a parameter key that will be used to retrieve
+the value from [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html)
 
 **Example parameters file:**
+```
+[environment]
+template=template.json
+bucket=account-cf-artifacts-bucket
+stack_name=example-stack
+region=us-west-2
+
+[tags]
+OWNER=nobody@gmail.com
+PROJECT=Stackility Examples
+THE_DATA=important
+Name=example-stack
+
+[parameters]
+theCIDR=10.22.0.0/16
+subnetCIDROne=10.22.10.0/24
+bar=some value
+db_password=[ask]
+api_key=[ssm:api_key]
+```
 
 
 #### Development notes:
@@ -82,4 +107,3 @@ poll interval
 
 * print CloudFormation Outputs at the end of the upsert command
 * the example directory sucks; fix it
-* write something about the INI file usage for upsert
