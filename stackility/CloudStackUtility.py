@@ -407,6 +407,15 @@ class CloudStackUtility:
             stack_name = self._config.get('environment', {}).get('stack_name', None)
             response = self._cloudFormation.describe_stacks(StackName=stack_name)
             stack = response['Stacks'][0]
+            if stack['StackStatus'] == 'ROLLBACK_COMPLETE':
+                logging.info('stack is in ROLLBACK_COMPLETE status and should be deleted')
+                del_stack_resp = self._cloudFormation.delete_stack(StackName=stack_name)
+                logging.info('delete started for stack: {}'.format(stack_name))
+                logging.debug('delete_stack returned: {}'.format(json.dumps(del_stack_resp, indent=4)))
+                stack_delete = self.poll_stack()
+                if not stack_delete:
+                    return False
+
             if stack['StackStatus'] in ['CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE']:
                 self._updateStack = True
         except:
