@@ -165,8 +165,13 @@ class CloudStackUtility:
                 with open(template_file, 'r') as f:
                     self._template = yaml.load(f, Loader=Loader)
             else:
-                json_stuff = open(template_file)
-                self._template = json.load(json_stuff)
+                if self._config.get('project_dir'):
+                    new_template_file = os.path.join(self._config.get('project_dir'),template_file)
+                    json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
+                    self._template = json.load(json_stuff)
+                else:
+                    json_stuff = open(template_file)
+                    self._template = json.load(json_stuff)
         except Exception as x:
             logging.error('Exception caught in load_template(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
@@ -442,7 +447,11 @@ class CloudStackUtility:
         try:
             stackfile_key, propertyfile_key = self._craft_s3_keys()
 
-            template_file = self._config.get('environment', {}).get('template', None)
+            if self._config.get('project_dir'):
+                template_file = os.path.join(self._config.get('project_dir'), self._config.get('environment', {}).get('template', None))
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+
             bucket = self._config.get('environment', {}).get('bucket', None)
             if not os.path.isfile(template_file):
                 logging.info("{} is not actually a file".format(template_file))

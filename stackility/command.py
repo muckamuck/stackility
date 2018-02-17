@@ -26,7 +26,10 @@ def cli():
 @click.option('--ini', '-i', help='INI file with needed information', required=True)
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
 @click.option('--yaml', '-y', help='YAML template', is_flag=True)
-def upsert(version, stack, ini, dryrun, yaml):
+@click.option('--profile', '-f', help='aws profile')
+@click.option('--project_dir', '-p', help='project directory')
+
+def upsert(version, stack, ini, dryrun, yaml, profile, project_dir):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -49,6 +52,10 @@ def upsert(version, stack, ini, dryrun, yaml):
         ini_data['dryrun'] = True
     else:
         ini_data['dryrun'] = False
+    if profile:
+        ini_data['profile'] = profile
+    if project_dir:
+        ini_data['project_dir']=project_dir
 
     if stack:
         ini_data['environment']['stack_name'] = stack
