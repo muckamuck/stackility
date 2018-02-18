@@ -10,6 +10,7 @@ import json
 import yaml
 import traceback
 import uuid
+import jinja2
 
 
 try:
@@ -161,14 +162,28 @@ class CloudStackUtility:
     def _load_template(self):
         try:
             template_file = self._config.get('environment', {}).get('template', None)
+
+            # If a jinja template
+            if template_file.endswith('.j2'):
+                logging.info('template file ends with j2')
+                self._render_template()
+                template_file = template_file[:-3]
+            else:
+                logging.info('template does not end with j2')
+
             if self._config.get('yaml'):
                 with open(template_file, 'r') as f:
                     self._template = yaml.load(f, Loader=Loader)
             else:
                 if self._config.get('project_dir'):
                     new_template_file = os.path.join(self._config.get('project_dir'),template_file)
-                    json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
-                    self._template = json.load(json_stuff)
+                    if new_template_file.endswith('.j2'):
+                        new_template_file = new_template_file[:-3]
+                        json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
+                        self._template = json.load(json_stuff)
+                    else:
+                        json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
+                        self._template = json.load(json_stuff)
                 else:
                     json_stuff = open(template_file)
                     self._template = json.load(json_stuff)
@@ -191,7 +206,7 @@ class CloudStackUtility:
 
         Todo:
             Figure out what could go wrong and take steps
-            to hanlde problems.
+            to handle problems.
         """
         self._initialize_list()
         interested = True
@@ -225,7 +240,7 @@ class CloudStackUtility:
 
         Todo:
             Figure out what could go wrong and take steps
-            to hanlde problems.
+            to handle problems.
         """
         self._initialize_smash()
         try:
@@ -449,8 +464,13 @@ class CloudStackUtility:
 
             if self._config.get('project_dir'):
                 template_file = os.path.join(self._config.get('project_dir'), self._config.get('environment', {}).get('template', None))
+                if template_file.endswith('.j2'):
+                    template_file = template_file[:-3]
+
             else:
                 template_file = self._config.get('environment', {}).get('template', None)
+                if template_file.endswith('.j2'):
+                    template_file = template_file[:-3]
 
             bucket = self._config.get('environment', {}).get('bucket', None)
             if not os.path.isfile(template_file):
@@ -594,3 +614,49 @@ class CloudStackUtility:
         elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
+
+    def _render(self,tpl_path, context):
+        path, filename = os.path.split(tpl_path)
+        return jinja2.Environment(
+            loader=jinja2.FileSystemLoader(path or './')
+        ).get_template(filename).render(context)
+
+
+    def _render_template(self):
+        template_file = self._config.get('environment', {}).get('template', None)
+
+        logging.info('template file is: '+str(template_file))
+        logging.info(self._config.get('environment'))
+
+        if template_file.endswith('yaml.j2'):
+            if self._config.get('project_dir'):
+                new_template_file = os.path.join(self._config.get('project_dir'),template_file)
+                newest_template_file = new_template_file[:-3]
+                output_from_parsed_template = self.render(new_template_file, self._config.get('environment'))
+                with open(newest_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+                new_template_file = template_file[:-3]
+                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                with open(new_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+
+        elif template_file.endswith('json.j2'):
+            if self._config.get('project_dir'):
+                new_template_file = os.path.join(self._config.get('project_dir'), template_file)
+                newest_template_file = new_template_file[:-3]
+                output_from_parsed_template = self._render(new_template_file, self._config.get('environment'))
+                with open(newest_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+                new_template_file = template_file[:-3]
+                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                with open(new_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+
+        else:
+            logging.error('The jinja2 file must end with yaml.j2 or json.j2')
+            raise SystemError
+        

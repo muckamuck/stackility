@@ -12,6 +12,7 @@ import boto3
 import logging
 import sys
 import traceback
+import os
 
 
 @click.group()
@@ -117,9 +118,14 @@ def start_upsert(ini_data):
         logging.info('stack create/update was started successfully.')
         if stack_driver.poll_stack():
             logging.info('stack create/update was finished successfully.')
+            logging.info(ini_data)
+            if 'template' in ini_data['environment'] and ini_data['environment']['template'].endswith('.j2'):
+                remove_non_jinja2_cf_template(ini_data)
             sys.exit(0)
         else:
             logging.error('stack create/update was did not go well.')
+            if template in ini_data and ini_data['template'].endswith('.j2'):
+                remove_non_jinja2_cf_template(ini_data)
             sys.exit(1)
     else:
         logging.error('start of stack create/update did not go well.')
@@ -160,3 +166,28 @@ def read_config_info(ini_file):
 
 def validate_config_info():
     return True
+
+def remove_non_jinja2_cf_template(ini_data):
+    """
+    Removes the non .j2 template file so there is only a .j2 template
+
+    Args:
+        ini_data
+
+    Returns:
+        Success or error
+
+    Todo:
+        Figure out what could go wrong and take steps
+        to hanlde problems.
+    """
+    template_file= ini_data['environment']['template']
+    template_file = template_file[:-3]
+
+    if 'project_dir' in ini_data:
+        template_file = os.path.join(ini_data['project_dir'], template_file)
+
+    try:
+        os.remove(template_file)
+    except OSError, e:  ## if failed ##
+        logging.error("Exception caught in deleting template file:  %s - %s." % (e.filename, e.strerror))
