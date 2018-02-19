@@ -159,6 +159,39 @@ class CloudStackUtility:
         return True
 
     def _load_template(self):
+        template_decoded = False
+        template_file = self._config.get('environment', {}).get('template', None)
+        self._template = None
+
+        try:
+            json_stuff = open(template_file)
+            self._template = json.load(json_stuff)
+
+            if self._template and 'Resources' in self._template:
+                template_decoded = True
+                logging.info('template is JSON')
+            else:
+                logging.info('template is not a valid JSON template')
+        except Exception as x:
+            logging.warning('Exception caught in load_template(json): {}'.format(x))
+            logging.info('template is not JSON')
+
+        try:
+            with open(template_file, 'r') as f:
+                self._template = yaml.load(f, Loader=Loader)
+
+            if self._template and 'Resources' in self._template:
+                template_decoded = True
+                logging.info('template is YAML')
+            else:
+                logging.info('template is not a valid YAML template')
+        except Exception:
+            logging.warning('Exception caught in load_template(yaml): {}'.format(x))
+            logging.info('template is not YAML')
+
+        return template_decoded
+
+    def x_load_template(self):
         try:
             template_file = self._config.get('environment', {}).get('template', None)
             if self._config.get('yaml'):
