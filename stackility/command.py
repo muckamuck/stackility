@@ -29,8 +29,8 @@ def cli():
 @click.option('--yaml', '-y', help='YAML template', is_flag=True)
 @click.option('--profile', '-f', help='aws profile')
 @click.option('--project_dir', '-p', help='project directory')
-
-def upsert(version, stack, ini, dryrun, yaml, profile, project_dir):
+@click.option('--output_yaml', '-o', help='convert json template to yaml upon upload')
+def upsert(version, stack, ini, dryrun, yaml, profile, project_dir, output_yaml):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -48,6 +48,11 @@ def upsert(version, stack, ini, dryrun, yaml, profile, project_dir):
         ini_data['yaml'] = True
     else:
         ini_data['yaml'] = False
+
+    if output_yaml:
+        ini_data['output_yaml'] = True
+    else:
+        ini_data['output_yaml'] = False
 
     if dryrun:
         ini_data['dryrun'] = True
@@ -124,7 +129,7 @@ def start_upsert(ini_data):
             sys.exit(0)
         else:
             logging.error('stack create/update was did not go well.')
-            if template in ini_data and ini_data['template'].endswith('.j2'):
+            if 'template' in ini_data and ini_data['template'].endswith('.j2'):
                 remove_non_jinja2_cf_template(ini_data)
             sys.exit(1)
     else:

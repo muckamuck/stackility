@@ -10,7 +10,9 @@ setup(
         "boto3>=1.4.3",
         "Click>=6.7",
         "PyYAML>=3.12",
-        "pymongo>=3.4.0"
+        "pymongo>=3.4.0",
+        "jinja2>=2.2.10",
+        "cfn_flip>=1.0.0"
     ],
     entry_points="""
         [console_scripts]
