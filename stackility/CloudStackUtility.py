@@ -191,22 +191,6 @@ class CloudStackUtility:
 
         return template_decoded
 
-    def x_load_template(self):
-        try:
-            template_file = self._config.get('environment', {}).get('template', None)
-            if self._config.get('yaml'):
-                with open(template_file, 'r') as f:
-                    self._template = yaml.load(f, Loader=Loader)
-            else:
-                json_stuff = open(template_file)
-                self._template = json.load(json_stuff)
-        except Exception as x:
-            logging.error('Exception caught in load_template(): {}'.format(x))
-            traceback.print_exc(file=sys.stdout)
-            return False
-
-        return True
-
     def list(self):
         """
         List the existing stacks in the indicated region
