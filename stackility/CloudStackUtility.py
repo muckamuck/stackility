@@ -10,6 +10,8 @@ import json
 import yaml
 import traceback
 import uuid
+import jinja2
+import subprocess
 
 
 try:
@@ -161,12 +163,61 @@ class CloudStackUtility:
     def _load_template(self):
         try:
             template_file = self._config.get('environment', {}).get('template', None)
+
+            # If a jinja template
+            if template_file.endswith('.j2'):
+                logging.info('template file ends with j2')
+                # Renders the jinja2 template to a json template
+                self._render_template()
+
+                # Sets the template file to the new rendered template i.e. filename.json
+                template_file = template_file[:-3]
+            else:
+                logging.info('template does not end with j2 in ini file or the actual file does not exist')
+
             if self._config.get('yaml'):
                 with open(template_file, 'r') as f:
                     self._template = yaml.load(f, Loader=Loader)
+
+            # If a json file os json jinja2 template
             else:
-                json_stuff = open(template_file)
-                self._template = json.load(json_stuff)
+                # We are not calling stackility from within the project directory
+                if self._config.get('project_dir'):
+
+                    if self._config.get('output_yaml'):
+                        # Creates a yaml template
+                        new_template_file = os.path.join(self._config.get('project_dir'),template_file)
+
+                        self._convert_json_template_to_yaml(new_template_file)
+                        # Load the yaml template
+
+                        if self._config.get('project_dir'):
+                            new_template_file=os.path.splitext(template_file)[0]+'.yaml'
+                            new_template_file=os.path.join(self._config.get('project_dir'),new_template_file)
+                        else:
+                            new_template_file=os.path.splitext(template_file)[0]+'.yaml'
+                        with open(new_template_file, 'r') as f:
+                            self._template = yaml.load(f, Loader=Loader)
+                    else:
+                        json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
+                        self._template = json.load(json_stuff)
+
+
+                # Calling stackility from within the project directory
+                else:
+                    # If we want to convert the json template to a yaml template
+                    if self._config.get('output_yaml'):
+                        # Create a yaml template
+                        self._convert_json_template_to_yaml(template_file)
+                        # Load the yaml template
+                        new_template_file = os.path.splitext(template_file)[0] + '.yaml'
+
+                        with open(new_template_file, 'r') as f:
+                            self._template = yaml.load(f, Loader=Loader)
+                    # We are going to upload the standard template
+                    else:
+                        json_stuff = open(template_file)
+                        self._template = json.load(json_stuff)
         except Exception as x:
             logging.error('Exception caught in load_template(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
@@ -186,7 +237,7 @@ class CloudStackUtility:
 
         Todo:
             Figure out what could go wrong and take steps
-            to hanlde problems.
+            to handle problems.
         """
         self._initialize_list()
         interested = True
@@ -220,7 +271,7 @@ class CloudStackUtility:
 
         Todo:
             Figure out what could go wrong and take steps
-            to hanlde problems.
+            to handle problems.
         """
         self._initialize_smash()
         try:
@@ -442,7 +493,16 @@ class CloudStackUtility:
         try:
             stackfile_key, propertyfile_key = self._craft_s3_keys()
 
-            template_file = self._config.get('environment', {}).get('template', None)
+            if self._config.get('project_dir'):
+                template_file = os.path.join(self._config.get('project_dir'), self._config.get('environment', {}).get('template', None))
+                if template_file.endswith('.j2'):
+                    template_file = template_file[:-3]
+
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+                if template_file.endswith('.j2'):
+                    template_file = template_file[:-3]
+
             bucket = self._config.get('environment', {}).get('bucket', None)
             if not os.path.isfile(template_file):
                 logging.info("{} is not actually a file".format(template_file))
@@ -585,3 +645,84 @@ class CloudStackUtility:
         elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
+
+    def _render(self,tpl_path, context):
+        path, filename = os.path.split(tpl_path)
+        return jinja2.Environment(
+            loader=jinja2.FileSystemLoader(path or './')
+        ).get_template(filename).render(context)
+
+
+    def _render_template(self):
+        template_file = self._config.get('environment', {}).get('template', None)
+
+        logging.info('render template')
+        logging.info('template file is: '+str(template_file))
+        logging.info(self._config.get('environment'))
+
+        if template_file.endswith('yaml.j2'):
+            if self._config.get('project_dir'):
+                new_template_file = os.path.join(self._config.get('project_dir'),template_file)
+                newest_template_file = new_template_file[:-3]
+                output_from_parsed_template = self.render(new_template_file, self._config.get('environment'))
+                with open(newest_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+                new_template_file = template_file[:-3]
+                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                with open(new_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+
+        elif template_file.endswith('json.j2'):
+            if self._config.get('project_dir'):
+                new_template_file = os.path.join(self._config.get('project_dir'), template_file)
+                newest_template_file = new_template_file[:-3]
+                output_from_parsed_template = self._render(new_template_file, self._config.get('environment'))
+                with open(newest_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+            else:
+                template_file = self._config.get('environment', {}).get('template', None)
+                new_template_file = template_file[:-3]
+                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                with open(new_template_file, "wb") as f:
+                    f.write(output_from_parsed_template)
+
+        else:
+            logging.error('The jinja2 file must end with yaml.j2 or json.j2')
+            raise SystemError
+
+
+
+
+    def _convert_json_template_to_yaml(self,file):
+        logging.info('convert json template to yaml')
+
+        new_template_file = os.path.splitext(file)[0] + '.yaml'
+
+        # If executing outside of the project directory, then
+        # add the project directory
+        try:
+            CMD = "cfn-flip -y -c -l " + str(file) + " " + str(new_template_file)
+            print CMD
+
+            ## run it ##
+
+            STACKS = []
+            PROCESS = subprocess.Popen(CMD, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            while True:
+                out = PROCESS.stdout.read(1)
+                if out == '' and PROCESS.poll() != None:
+                    break
+                if out != '':
+                    sys.stdout.write(out)
+                    sys.stdout.flush()
+
+        except OSError as e:
+            logging.error("OSError > ", e.errno)
+            logging.error("OSError > ", e.strerror)
+            logging.error("OSError > ", e.filename)
+
+        except:
+            logging.error("Error > ", sys.exc_info()[0])

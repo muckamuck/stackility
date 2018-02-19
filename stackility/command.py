@@ -12,6 +12,7 @@ import boto3
 import logging
 import sys
 import traceback
+import os
 
 
 @click.group()
@@ -26,7 +27,10 @@ def cli():
 @click.option('--ini', '-i', help='INI file with needed information', required=True)
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
 @click.option('--yaml', '-y', help='YAML template', is_flag=True)
-def upsert(version, stack, ini, dryrun, yaml):
+@click.option('--profile', '-f', help='aws profile')
+@click.option('--project_dir', '-p', help='project directory')
+@click.option('--output_yaml', '-o', help='convert json template to yaml upon upload')
+def upsert(version, stack, ini, dryrun, yaml, profile, project_dir, output_yaml):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -45,10 +49,19 @@ def upsert(version, stack, ini, dryrun, yaml):
     else:
         ini_data['yaml'] = False
 
+    if output_yaml:
+        ini_data['output_yaml'] = True
+    else:
+        ini_data['output_yaml'] = False
+
     if dryrun:
         ini_data['dryrun'] = True
     else:
         ini_data['dryrun'] = False
+    if profile:
+        ini_data['profile'] = profile
+    if project_dir:
+        ini_data['project_dir']=project_dir
 
     if stack:
         ini_data['environment']['stack_name'] = stack
@@ -110,9 +123,14 @@ def start_upsert(ini_data):
         logging.info('stack create/update was started successfully.')
         if stack_driver.poll_stack():
             logging.info('stack create/update was finished successfully.')
+            logging.info(ini_data)
+            if 'template' in ini_data['environment'] and ini_data['environment']['template'].endswith('.j2'):
+                remove_non_jinja2_cf_template(ini_data)
             sys.exit(0)
         else:
             logging.error('stack create/update was did not go well.')
+            if 'template' in ini_data and ini_data['template'].endswith('.j2'):
+                remove_non_jinja2_cf_template(ini_data)
             sys.exit(1)
     else:
         logging.error('start of stack create/update did not go well.')
@@ -153,3 +171,28 @@ def read_config_info(ini_file):
 
 def validate_config_info():
     return True
+
+def remove_non_jinja2_cf_template(ini_data):
+    """
+    Removes the non .j2 template file so there is only a .j2 template
+
+    Args:
+        ini_data
+
+    Returns:
+        Success or error
+
+    Todo:
+        Figure out what could go wrong and take steps
+        to hanlde problems.
+    """
+    template_file= ini_data['environment']['template']
+    template_file = template_file[:-3]
+
+    if 'project_dir' in ini_data:
+        template_file = os.path.join(ini_data['project_dir'], template_file)
+
+    try:
+        os.remove(template_file)
+    except OSError, e:  ## if failed ##
+        logging.error("Exception caught in deleting template file:  %s - %s." % (e.filename, e.strerror))
