@@ -15,7 +15,7 @@ import traceback
 
 
 @click.group()
-@click.version_option(version='0.4.2')
+@click.version_option(version='0.4.3')
 def cli():
     pass
 
