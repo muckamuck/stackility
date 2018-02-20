@@ -93,7 +93,6 @@ class CloudStackUtility:
             point continuing after that point.
 
         """
-
         required_parameters = []
         self._stackParameters = []
 
@@ -105,14 +104,13 @@ class CloudStackUtility:
         try:
             available_parameters = self._parameters.keys()
 
-            for parameter_name in self._template['Parameters']:
-                required_parameters.append(str(parameter_name))
-
-            logging.info(' required parameters: ' + str(required_parameters))
-            logging.info('available parameters: ' + str(available_parameters))
+            if 'Parameters' in self._template:
+                for parameter_name in self._template['Parameters']:
+                    required_parameters.append(str(parameter_name))
 
             parameters = []
             for required_parameter in required_parameters:
+
                 parameter = {}
                 parameter['ParameterKey'] = str(required_parameter)
 
@@ -168,10 +166,20 @@ class CloudStackUtility:
             if template_file.endswith('.j2'):
                 logging.info('template file ends with j2')
                 # Renders the jinja2 template to a json template
-                self._render_template()
 
-                # Sets the template file to the new rendered template i.e. filename.json
-                template_file = template_file[:-3]
+                if self._config.get('project_dir'):
+                    template_file = os.path.join(self._config.get('project_dir'), template_file)
+                    if self._is_valid_json(template_file):
+                        self._render_template()
+
+                    # Sets the template file to the new rendered template i.e. filename.json
+                    template_file = template_file[:-3]
+                else:
+                    if self._is_valid_json(template_file):
+                        self._render_template()
+
+                    # Sets the template file to the new rendered template i.e. filename.json
+                    template_file = template_file[:-3]
             else:
                 logging.info('template does not end with j2 in ini file or the actual file does not exist')
 
@@ -183,11 +191,9 @@ class CloudStackUtility:
             else:
                 # We are not calling stackility from within the project directory
                 if self._config.get('project_dir'):
-
                     if self._config.get('output_yaml'):
                         # Creates a yaml template
                         new_template_file = os.path.join(self._config.get('project_dir'),template_file)
-
                         self._convert_json_template_to_yaml(new_template_file)
                         # Load the yaml template
 
@@ -218,6 +224,7 @@ class CloudStackUtility:
                     else:
                         json_stuff = open(template_file)
                         self._template = json.load(json_stuff)
+
         except Exception as x:
             logging.error('Exception caught in load_template(): {}'.format(x))
             traceback.print_exc(file=sys.stdout)
@@ -325,11 +332,15 @@ class CloudStackUtility:
 
     def _fill_defaults(self):
         try:
-            parms = self._template['Parameters']
-            for key in parms:
-                key = str(key)
-                if 'Default' in parms[key] and key not in self._parameters:
-                    self._parameters[key] = parms[key]['Default']
+
+            # If there are parameters in the template
+            if 'Parameters' in self._template:
+                parms = self._template['Parameters']
+
+                for key in parms:
+                    key = str(key)
+                    if 'Default' in parms[key] and key not in self._parameters:
+                        self._parameters[key] = parms[key]['Default']
 
         except Exception as wtf:
             logging.error('Exception caught in fill_defaults(): {}'.format(wtf))
@@ -513,6 +524,7 @@ class CloudStackUtility:
             with open(temp_file_name, 'w') as dump_file:
                 json.dump(self._parameters, dump_file, indent=4)
 
+
             self._s3.upload_file(temp_file_name, bucket, propertyfile_key)
 
             logging.info('Copying {} to s3://{}/{}'.format(template_file, bucket, stackfile_key))
@@ -646,31 +658,35 @@ class CloudStackUtility:
             logging.error('there was a problem determining update or create')
             raise SystemError
 
-    def _render(self,tpl_path, context):
+    def _render(self,tpl_path):
+
+        tags_parms = self._config.get('tags')
+        env_parms = self._config.get('environment')
+
+        all_parms = tags_parms.copy()
+        all_parms.update(env_parms)
+
+        logging.info('All parameters: '+str(all_parms))
         path, filename = os.path.split(tpl_path)
         return jinja2.Environment(
             loader=jinja2.FileSystemLoader(path or './')
-        ).get_template(filename).render(context)
+        ).get_template(filename).render(all_parms)
 
 
     def _render_template(self):
         template_file = self._config.get('environment', {}).get('template', None)
 
-        logging.info('render template')
-        logging.info('template file is: '+str(template_file))
-        logging.info(self._config.get('environment'))
-
         if template_file.endswith('yaml.j2'):
             if self._config.get('project_dir'):
                 new_template_file = os.path.join(self._config.get('project_dir'),template_file)
                 newest_template_file = new_template_file[:-3]
-                output_from_parsed_template = self.render(new_template_file, self._config.get('environment'))
+                output_from_parsed_template = self.render(new_template_file)
                 with open(newest_template_file, "wb") as f:
                     f.write(output_from_parsed_template)
             else:
                 template_file = self._config.get('environment', {}).get('template', None)
                 new_template_file = template_file[:-3]
-                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                output_from_parsed_template = self.render(template_file)
                 with open(new_template_file, "wb") as f:
                     f.write(output_from_parsed_template)
 
@@ -678,13 +694,13 @@ class CloudStackUtility:
             if self._config.get('project_dir'):
                 new_template_file = os.path.join(self._config.get('project_dir'), template_file)
                 newest_template_file = new_template_file[:-3]
-                output_from_parsed_template = self._render(new_template_file, self._config.get('environment'))
+                output_from_parsed_template = self._render(new_template_file)
                 with open(newest_template_file, "wb") as f:
                     f.write(output_from_parsed_template)
             else:
                 template_file = self._config.get('environment', {}).get('template', None)
                 new_template_file = template_file[:-3]
-                output_from_parsed_template = self.render(template_file, self._config.get('environment'))
+                output_from_parsed_template = self.render(template_file)
                 with open(new_template_file, "wb") as f:
                     f.write(output_from_parsed_template)
 
@@ -692,16 +708,23 @@ class CloudStackUtility:
             logging.error('The jinja2 file must end with yaml.j2 or json.j2')
             raise SystemError
 
-
+    def _is_valid_json(self,path):
+        try:
+            json_stuff = open(path)
+            json_object = json.load(json_stuff)
+        except ValueError, e:
+            logging.info('Invalid json in '+str(path)+' - '+str(e))
+            raise SystemError
+        return True
 
 
     def _convert_json_template_to_yaml(self,file):
-        logging.info('convert json template to yaml')
-
         new_template_file = os.path.splitext(file)[0] + '.yaml'
 
         # If executing outside of the project directory, then
         # add the project directory
+        logging.info('def _convert_json_template_to_yaml - file: '+str(file))
+
         try:
             CMD = "cfn-flip -y -c -l " + str(file) + " " + str(new_template_file)
             print CMD
