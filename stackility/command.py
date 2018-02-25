@@ -11,6 +11,7 @@ import json
 import boto3
 import logging
 import sys
+import os
 import traceback
 
 
@@ -25,8 +26,10 @@ def cli():
 @click.option('--stack', '-s', help='stack name')
 @click.option('--ini', '-i', help='INI file with needed information', required=True)
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
-@click.option('--yaml', '-y', help='YAML template', is_flag=True)
-def upsert(version, stack, ini, dryrun, yaml):
+@click.option('--yaml', '-y', help='YAML template (deprecated - YAMLness is now detected at run-time', is_flag=True)
+@click.option('--no-poll', help='Start the stack work but do not poll', is_flag=True)
+@click.option('--work-directory', '-d', help='Start in the given working directory')
+def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -45,6 +48,11 @@ def upsert(version, stack, ini, dryrun, yaml):
     else:
         ini_data['yaml'] = False
 
+    if no_poll:
+        ini_data['no_poll'] = True
+    else:
+        ini_data['no_poll'] = False
+
     if dryrun:
         ini_data['dryrun'] = True
     else:
@@ -52,6 +60,13 @@ def upsert(version, stack, ini, dryrun, yaml):
 
     if stack:
         ini_data['environment']['stack_name'] = stack
+
+    if work_directory:
+        try:
+            os.chdir(work_directory)
+        except Exception as wtf:
+            logging.error(wtf)
+            sys.exit(2)
 
     print(json.dumps(ini_data, indent=2))
     start_upsert(ini_data)
@@ -106,14 +121,17 @@ def list(region, profile):
 
 def start_upsert(ini_data):
     stack_driver = CloudStackUtility(ini_data)
+    poll_stack = not ini_data.get('no_poll', False)
     if stack_driver.upsert():
         logging.info('stack create/update was started successfully.')
-        if stack_driver.poll_stack():
-            logging.info('stack create/update was finished successfully.')
-            sys.exit(0)
-        else:
-            logging.error('stack create/update was did not go well.')
-            sys.exit(1)
+
+        if poll_stack:
+            if stack_driver.poll_stack():
+                logging.info('stack create/update was finished successfully.')
+                sys.exit(0)
+            else:
+                logging.error('stack create/update was did not go well.')
+                sys.exit(1)
     else:
         logging.error('start of stack create/update did not go well.')
         sys.exit(1)
