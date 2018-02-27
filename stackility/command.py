@@ -4,6 +4,7 @@ The command line interface to stackility.
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from stackility import CloudStackUtility
+from stack_tool import StackTool
 import ConfigParser
 import click
 import time
@@ -28,7 +29,7 @@ def cli():
 @click.option('--dryrun', '-d', help='dry run', is_flag=True)
 @click.option('--yaml', '-y', help='YAML template (deprecated - YAMLness is now detected at run-time', is_flag=True)
 @click.option('--no-poll', help='Start the stack work but do not poll', is_flag=True)
-@click.option('--work-directory', '-d', help='Start in the given working directory')
+@click.option('--work-directory', '-w', help='Start in the given working directory')
 def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
@@ -128,6 +129,20 @@ def start_upsert(ini_data):
         if poll_stack:
             if stack_driver.poll_stack():
                 logging.info('stack create/update was finished successfully.')
+                try:
+                    b3Sess = boto3.session.Session()
+                    region = ini_data['environment']['region']
+                    stack_name = ini_data['environment']['stack_name']
+                    cf_client = b3Sess.client('cloudformation', region_name=region)
+                    stack_tool = stack_tool = StackTool(
+                        stack_name,
+                        region,
+                        cf_client
+                    )
+                    stack_tool.print_stack_info()
+                except Exception as wtf:
+                    logging.warning('there was a problems printing stack info: {}'.format(wtf))
+
                 sys.exit(0)
             else:
                 logging.error('stack create/update was did not go well.')
