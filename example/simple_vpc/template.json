@@ -14,12 +14,12 @@
         "bar": {
             "Description": "Bar",
             "Type": "String",
-            "Default": "default_value"
+            "Default": "{{bar}}"
         },
         "baz": {
             "Description": "Baz",
             "Type": "String",
-            "Default": "default_baz_value"
+            "Default": "{{foo}}"
         },
         "subnetCIDROne": {
             "Description": "The CIDR block of our new friend",
