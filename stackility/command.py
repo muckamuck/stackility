@@ -130,7 +130,12 @@ def start_upsert(ini_data):
             if stack_driver.poll_stack():
                 logging.info('stack create/update was finished successfully.')
                 try:
-                    b3Sess = boto3.session.Session()
+                    profile = ini_data.get('environment', {}).get('profile')
+                    if profile:
+                        b3Sess = boto3.session.Session(profile_name=profile)
+                    else:
+                        b3Sess = boto3.session.Session()
+
                     region = ini_data['environment']['region']
                     stack_name = ini_data['environment']['stack_name']
                     cf_client = b3Sess.client('cloudformation', region_name=region)
