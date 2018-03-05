@@ -11,7 +11,8 @@ setup(
         "Click>=6.7",
         "PyYAML>=3.12",
         "pymongo>=3.4.0",
-        "tabulate>=0.8"
+        "tabulate>=0.8",
+        "jinja2"
     ],
     entry_points="""
         [console_scripts]

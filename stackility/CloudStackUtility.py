@@ -1,8 +1,10 @@
 import boto3
 from botocore.exceptions import ClientError
 from bson import json_util
+import jinja2
 import getpass
 import logging
+import tempfile
 import sys
 import os
 import time
@@ -52,6 +54,7 @@ class CloudStackUtility:
     _tags = []
     _templateUrl = None
     _updateStack = False
+    _yaml = False
 
     def __init__(self, config_block):
         """
@@ -158,6 +161,32 @@ class CloudStackUtility:
 
         return True
 
+    def _render_template(self):
+        buf = None
+
+        try:
+            context = self._config.get('meta-parameters', None)
+            if not context:
+                return True
+
+            template_file = self._config.get('environment', {}).get('template', None)
+            path, filename = os.path.split(template_file)
+            env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(path or './')
+            )
+
+            buf = env.get_template(filename).render(context)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.rdr', delete=False) as tmp:
+                tmp.write(buf)
+                logging.info('template rendered into {}'.format(tmp.name))
+                self._config['environment']['template'] = tmp.name
+
+        except Exception as wtf:
+            print('error: _render_template() caught {}'.format(wtf))
+            sys.exit(1)
+
+        return buf
+
     def _load_template(self):
         template_decoded = False
         template_file = self._config.get('environment', {}).get('template', None)
@@ -169,6 +198,7 @@ class CloudStackUtility:
 
             if self._template and 'Resources' in self._template:
                 template_decoded = True
+                self._yaml = False
                 logging.info('template is JSON')
             else:
                 logging.info('template is not a valid JSON template')
@@ -184,6 +214,7 @@ class CloudStackUtility:
 
                 if self._template and 'Resources' in self._template:
                     template_decoded = True
+                    self._yaml = True
                     logging.info('template is YAML')
                 else:
                     logging.info('template is not a valid YAML template')
@@ -511,7 +542,7 @@ class CloudStackUtility:
         stub = stub + ":" + str('%02d' % now.tm_min)
         stub = stub + ":" + str('%02d' % now.tm_sec)
 
-        if self._config.get('yaml'):
+        if self._yaml:
             template_key = stub + "/stack.yaml"
         else:
             template_key = stub + "/stack.json"
@@ -586,6 +617,9 @@ class CloudStackUtility:
     def _initialize_upsert(self):
         if not self._validate_ini_data():
             logging.error('INI file missing required bits; bucket and/or template and/or stack_name')
+            raise SystemError
+        elif not self._render_template():
+            logging.error('template rendering failed')
             raise SystemError
         elif not self._load_template():
             logging.error('template initialization was not good')
