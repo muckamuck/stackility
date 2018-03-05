@@ -169,7 +169,8 @@ def find_myself():
 
 def read_config_info(ini_file):
     try:
-        config = ConfigParser.ConfigParser()
+        config = ConfigParser.RawConfigParser()
+        config.optionxform = lambda option: option
         config.read(ini_file)
         the_stuff = {}
         for section in config.sections():
