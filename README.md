@@ -60,6 +60,11 @@ done (example below).
 * [ssm:<SSM-PARAMETER>] - specify a parameter key that will be used to retrieve
 the value from [AWS Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html)
 
+**[meta-parameters]:** - (optional) if this section exists in the INI file it is assumed
+that the template file given in the ```[environment]``` section is a [Jinja2](http://jinja.pocoo.org/docs/)
+template file. The given template is rendered with the key/value pairs injected before the upload to the S3
+bucket.
+
 #### Example parameters file:
 ```
 [environment]
@@ -80,6 +85,10 @@ subnetCIDROne=10.22.10.0/24
 bar=some value
 db_password=[ask]
 api_key=[ssm:api_key]
+
+[meta-parameters]
+food=pizza
+drink=beer
 ```
 
 #### Example invocations:
