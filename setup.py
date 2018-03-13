@@ -12,6 +12,7 @@ setup(
         "PyYAML>=3.12",
         "pymongo>=3.4.0",
         "tabulate>=0.8",
+        "configparser",
         "jinja2"
     ],
     entry_points="""

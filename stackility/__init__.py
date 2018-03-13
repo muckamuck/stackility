@@ -1,4 +1,5 @@
 from stackility.CloudStackUtility import CloudStackUtility #noqa
+from stackility.stack_tool import StackTool #noqa
 from datetime import datetime
 
 __title__ = 'stackility'

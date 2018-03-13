@@ -4,8 +4,9 @@ The command line interface to stackility.
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from stackility import CloudStackUtility
-from stack_tool import StackTool
-import ConfigParser
+from stackility import StackTool
+from configparser import ConfigParser
+from configparser import RawConfigParser
 import click
 import time
 import json
@@ -174,7 +175,7 @@ def find_myself():
 
 def read_config_info(ini_file):
     try:
-        config = ConfigParser.RawConfigParser()
+        config = RawConfigParser()
         config.optionxform = lambda option: option
         config.read(ini_file)
         the_stuff = {}

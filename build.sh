@@ -14,4 +14,10 @@ rm -rf *.egg-info/ build/ dist/
 find . -name .ropeproject -type d | xargs rm -rf
 find . -name "*.pyc" -type f | xargs rm -f
 
-python setup.py sdist bdist_wheel
+python setup.py sdist
+python setup.py bdist_wheel --universal
+
+echo
+echo "================================================================================"
+echo "Upload with:"
+echo "twine upload dist/*"

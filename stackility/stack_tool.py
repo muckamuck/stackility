@@ -6,7 +6,7 @@ import traceback
 from tabulate import tabulate
 
 
-class StackTool(object):
+class StackTool:
     _cf_client = None
     _stack_name = None
     _region = None
