@@ -106,7 +106,7 @@ class CloudStackUtility:
         try:
             available_parameters = self._parameters.keys()
 
-            for parameter_name in self._template['Parameters']:
+            for parameter_name in self._template.get('Parameters', {}):
                 required_parameters.append(str(parameter_name))
 
             logging.info(' required parameters: ' + str(required_parameters))
