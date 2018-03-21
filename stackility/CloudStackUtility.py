@@ -639,3 +639,6 @@ class CloudStackUtility:
         elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
+
+    def get_cloud_formation_client(self):
+        return self._cloudFormation

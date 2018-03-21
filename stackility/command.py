@@ -5,7 +5,6 @@ Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from stackility import CloudStackUtility
 from stackility import StackTool
-from configparser import ConfigParser
 from configparser import RawConfigParser
 import click
 import time
@@ -139,7 +138,12 @@ def start_upsert(ini_data):
 
                     region = ini_data['environment']['region']
                     stack_name = ini_data['environment']['stack_name']
-                    cf_client = b3Sess.client('cloudformation', region_name=region)
+
+                    cf_client = stack_driver.get_cloud_formation_client()
+
+                    if not cf_client:
+                        cf_client = b3Sess.client('cloudformation', region_name=region)
+
                     stack_tool = stack_tool = StackTool(
                         stack_name,
                         region,
