@@ -1,8 +1,13 @@
-from stackility.CloudStackUtility import CloudStackUtility #noqa
+"""
+init
+"""
+
 from datetime import datetime
+from stackility.cloudstackutility import CloudStackUtility #noqa
+from stackility.stack_tool import StackTool #noqa
 
 __title__ = 'stackility'
-__version__ = '0.4.2'
+__version__ = '0.5.2'
 __author__ = 'Mr. Chuck Muckamuck'
 __author_email__ = 'chuck.muckamuck@gmail.com'
 __license__ = '''MIT License

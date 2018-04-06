@@ -1,7 +1,7 @@
 from setuptools import setup
 setup(
     name="Stackility",
-    version='0.4.2',
+    version='0.5.2',
     packages=['stackility'],
     description='Python CloudFormation utility',
     author='Chuck Muckamuck',
@@ -10,7 +10,10 @@ setup(
         "boto3>=1.4.3",
         "Click>=6.7",
         "PyYAML>=3.12",
-        "pymongo>=3.4.0"
+        "pymongo>=3.4.0",
+        "tabulate>=0.8",
+        "configparser",
+        "jinja2"
     ],
     entry_points="""
         [console_scripts]

@@ -1,15 +1,21 @@
-import boto3
-from botocore.exceptions import ClientError
-from bson import json_util
-import getpass
-import logging
-import sys
+"""
+cloudstackutility
+"""
+
+import uuid
+import traceback
 import os
 import time
 import json
+import sys
+import tempfile
+import logging
+import getpass
+import boto3
+from botocore.exceptions import ClientError
+from bson import json_util
+import jinja2
 import yaml
-import traceback
-import uuid
 
 
 try:
@@ -23,15 +29,15 @@ try:
 except:
     POLL_INTERVAL = 30
 
-logging_level = logging.INFO
+LOGGING_LEVEL = logging.INFO
 
 logging.basicConfig(
-    level=logging_level,
+    level=LOGGING_LEVEL,
     format='[%(levelname)s] %(asctime)s (%(module)s) %(message)s',
     datefmt='%Y/%m/%d-%H:%M:%S'
 )
 
-logging.getLogger().setLevel(logging_level)
+logging.getLogger().setLevel(LOGGING_LEVEL)
 
 
 class CloudStackUtility:
@@ -42,16 +48,17 @@ class CloudStackUtility:
     SSM = '[ssm:'
     _verbose = False
     _template = None
-    _b3Sess = None
-    _cloudFormation = None
+    _b3sess = None
+    _cloudformation = None
     _config = None
     _parameters = {}
-    _stackParameters = []
+    _stackparameters = []
     _s3 = None
     _ssm = None
     _tags = []
-    _templateUrl = None
-    _updateStack = False
+    _templateurl = None
+    _updatestack = False
+    _yaml = False
 
     def __init__(self, config_block):
         """
@@ -93,7 +100,7 @@ class CloudStackUtility:
         """
 
         required_parameters = []
-        self._stackParameters = []
+        self._stackparameters = []
 
         try:
             self._initialize_upsert()
@@ -103,11 +110,11 @@ class CloudStackUtility:
         try:
             available_parameters = self._parameters.keys()
 
-            for parameter_name in self._template['Parameters']:
+            for parameter_name in self._template.get('Parameters', {}):
                 required_parameters.append(str(parameter_name))
 
-            logging.info(' required parameters: ' + str(required_parameters))
-            logging.info('available parameters: ' + str(available_parameters))
+            logging.info(' required parameters: %s', required_parameters)
+            logging.info('available parameters: %s', available_parameters)
 
             parameters = []
             for required_parameter in required_parameters:
@@ -126,12 +133,12 @@ class CloudStackUtility:
                 logging.info('This was a dryrun')
                 sys.exit(0)
 
-            if self._updateStack:
+            if self._updatestack:
                 self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
                 self._tags.append({"Key": "ANSWER", "Value": str(42)})
-                stack = self._cloudFormation.update_stack(
+                stack = self._cloudformation.update_stack(
                     StackName=self._config.get('environment', {}).get('stack_name', None),
-                    TemplateURL=self._templateUrl,
+                    TemplateURL=self._templateurl,
                     Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
@@ -139,18 +146,16 @@ class CloudStackUtility:
             else:
                 self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
                 self._tags.append({"Key": "ANSWER", "Value": str(42)})
-                stack = self._cloudFormation.create_stack(
+                stack = self._cloudformation.create_stack(
                     StackName=self._config.get('environment', {}).get('stack_name', None),
-                    TemplateURL=self._templateUrl,
+                    TemplateURL=self._templateurl,
                     Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
-                logging.info('stack: {}'.format(json.dumps(stack,
-                                                           indent=4,
-                                                           sort_keys=True)))
-        except Exception as x:
-            logging.error('Exception caught in upsert(): {}'.format(x))
+                logging.info('stack: %s', json.dumps(stack, indent=4, sort_keys=True))
+        except Exception as exc:
+            logging.error('Exception caught in upsert(): %s', exc)
             if self._verbose:
                 traceback.print_exc(file=sys.stdout)
 
@@ -158,26 +163,69 @@ class CloudStackUtility:
 
         return True
 
-    def _load_template(self):
-        try:
-            template_file = self._config.get('environment', {}).get('template', None)
-            if self._config.get('yaml'):
-                with open(template_file, 'r') as f:
-                    self._template = yaml.load(f, Loader=Loader)
-            else:
-                if self._config.get('project_dir'):
-                    new_template_file = os.path.join(self._config.get('project_dir'),template_file)
-                    json_stuff = open(os.path.join(self._config.get('project_dir'),template_file))
-                    self._template = json.load(json_stuff)
-                else:
-                    json_stuff = open(template_file)
-                    self._template = json.load(json_stuff)
-        except Exception as x:
-            logging.error('Exception caught in load_template(): {}'.format(x))
-            traceback.print_exc(file=sys.stdout)
-            return False
+    def _render_template(self):
+        buf = None
 
-        return True
+        try:
+            context = self._config.get('meta-parameters', None)
+            if not context:
+                return True
+
+            template_file = self._config.get('environment', {}).get('template', None)
+            path, filename = os.path.split(template_file)
+            env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader(path or './')
+            )
+
+            buf = env.get_template(filename).render(context)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.rdr', delete=False) as tmp:
+                tmp.write(buf)
+                logging.info('template rendered into %s', tmp.name)
+                self._config['environment']['template'] = tmp.name
+
+        except Exception as wtf:
+            print('error: _render_template() caught {}'.format(wtf))
+            sys.exit(1)
+
+        return buf
+
+    def _load_template(self):
+        template_decoded = False
+        template_file = self._config.get('environment', {}).get('template', None)
+        self._template = None
+
+        try:
+            json_stuff = open(template_file)
+            self._template = json.load(json_stuff)
+
+            if self._template and 'Resources' in self._template:
+                template_decoded = True
+                self._yaml = False
+                logging.info('template is JSON')
+            else:
+                logging.info('template is not a valid JSON template')
+        except Exception as exc:
+            template_decoded = False
+            logging.warning('Exception caught in load_template(json): %s', exc)
+            logging.info('template is not JSON')
+
+        if not template_decoded:
+            try:
+                with open(template_file, 'r') as file:
+                    self._template = yaml.load(file, Loader=Loader)
+
+                if self._template and 'Resources' in self._template:
+                    template_decoded = True
+                    self._yaml = True
+                    logging.info('template is YAML')
+                else:
+                    logging.info('template is not a valid YAML template')
+            except Exception as exc:
+                template_decoded = False
+                logging.warning('Exception caught in load_template(yaml): %s', exc)
+                logging.info('template is not YAML')
+
+        return template_decoded
 
     def list(self):
         """
@@ -196,7 +244,7 @@ class CloudStackUtility:
         self._initialize_list()
         interested = True
 
-        response = self._cloudFormation.list_stacks()
+        response = self._cloudformation.list_stacks()
         print('Stack(s):')
         while interested:
             if 'StackSummaries' in response:
@@ -207,7 +255,7 @@ class CloudStackUtility:
 
             next_token = response.get('NextToken', None)
             if next_token:
-                response = self._cloudFormation.list_stacks(NextToken=next_token)
+                response = self._cloudformation.list_stacks(NextToken=next_token)
             else:
                 interested = False
 
@@ -230,22 +278,18 @@ class CloudStackUtility:
         self._initialize_smash()
         try:
             stack_name = self._config.get('environment', {}).get('stack_name', None)
-            response = self._cloudFormation.describe_stacks(StackName=stack_name)
-            logging.debug('smash pre-flight returned: {}'.format(
-                json.dumps(response,
-                           indent=4,
-                           default=json_util.default
-                           )))
+            response = self._cloudformation.describe_stacks(StackName=stack_name)
+            logging.debug('smash pre-flight returned: %s', json.dumps(response, indent=4, default=json_util.default))
         except ClientError as wtf:
             logging.warning('your stack is in another castle [0].')
             return False
         except Exception as wtf:
-            logging.error('failed to find intial status of smash candidate: {}'.format(wtf))
+            logging.error('failed to find intial status of smash candidate: %s', wtf)
             return False
 
-        response = self._cloudFormation.delete_stack(StackName=stack_name)
-        logging.info('delete started for stack: {}'.format(stack_name))
-        logging.debug('delete_stack returned: {}'.format(json.dumps(response, indent=4)))
+        response = self._cloudformation.delete_stack(StackName=stack_name)
+        logging.info('delete started for stack: %s', stack_name)
+        logging.debug('delete_stack returned: %s', json.dumps(response, indent=4))
         return self.poll_stack()
 
     def _init_boto3_clients(self):
@@ -263,17 +307,17 @@ class CloudStackUtility:
             profile = self._config.get('environment', {}).get('profile')
             region = self._config.get('environment', {}).get('region')
             if profile:
-                self._b3Sess = boto3.session.Session(profile_name=profile)
+                self._b3sess = boto3.session.Session(profile_name=profile)
             else:
-                self._b3Sess = boto3.session.Session()
+                self._b3sess = boto3.session.Session()
 
-            self._s3 = self._b3Sess.client('s3')
-            self._cloudFormation = self._b3Sess.client('cloudformation', region_name=region)
-            self._ssm = self._b3Sess.client('ssm', region_name=region)
+            self._s3 = self._b3sess.client('s3')
+            self._cloudformation = self._b3sess.client('cloudformation', region_name=region)
+            self._ssm = self._b3sess.client('ssm', region_name=region)
 
             return True
         except Exception as wtf:
-            logging.error('Exception caught in intialize_session(): {}'.format(wtf))
+            logging.error('Exception caught in intialize_session(): %s', wtf)
             traceback.print_exc(file=sys.stdout)
             return False
 
@@ -286,13 +330,13 @@ class CloudStackUtility:
                     self._parameters[key] = parms[key]['Default']
 
         except Exception as wtf:
-            logging.error('Exception caught in fill_defaults(): {}'.format(wtf))
+            logging.error('Exception caught in fill_defaults(): %s', wtf)
             traceback.print_exc(file=sys.stdout)
             return False
 
         return True
 
-    def _get_ssm_parameter(self, p):
+    def _get_ssm_parameter(self, parameters):
         """
         Get parameters from Simple Systems Manager
 
@@ -307,17 +351,17 @@ class CloudStackUtility:
         secure_string = False
         try:
             response = self._ssm.describe_parameters(
-                Filters=[{'Key': 'Name', 'Values': [p]}]
+                Filters=[{'Key': 'Name', 'Values': [parameters]}]
             )
 
             if 'Parameters' in response:
-                t = response['Parameters'][0].get('Type', None)
-                if t == 'String':
+                typ = response['Parameters'][0].get('Type', None)
+                if typ == 'String':
                     secure_string = False
-                elif t == 'SecureString':
+                elif typ == 'SecureString':
                     secure_string = True
 
-                response = self._ssm.get_parameter(Name=p, WithDecryption=secure_string)
+                response = self._ssm.get_parameter(Name=parameters, WithDecryption=secure_string)
                 val = response.get('Parameter', {}).get('Value', None)
         except Exception:
             pass
@@ -349,19 +393,19 @@ class CloudStackUtility:
                 if val:
                     self._parameters[k] = val
                 else:
-                    logging.error('SSM parameter {} not found'.format(tmp))
+                    logging.error('SSM parameter {} not found %s', tmp)
                     return False
             elif self._parameters[k] == self.ASK:
                 val = None
-                a1 = '__x___'
-                a2 = '__y___'
-                prompt1 = "Enter value for '{}': ".format(k)
-                prompt2 = "Confirm value for '{}': ".format(k)
-                while a1 != a2:
-                    a1 = getpass.getpass(prompt=prompt1)
-                    a2 = getpass.getpass(prompt=prompt2)
-                    if a1 == a2:
-                        val = a1
+                ans1 = '__x___'
+                ans2 = '__y___'
+                prompt1 = "Enter value for '%s': ", k
+                prompt2 = "Confirm value for '%s': ", k
+                while ans1 != ans2:
+                    ans1 = getpass.getpass(prompt=prompt1)
+                    ans2 = getpass.getpass(prompt=prompt2)
+                    if ans1 == ans2:
+                        val = ans1
                     else:
                         print('values do not match, try again')
                 self._parameters[k] = val
@@ -389,11 +433,7 @@ class CloudStackUtility:
             tag['Value'] = tags[tag_name]
             self._tags.append(tag)
 
-        logging.info('Tags: {}'.format(json.dumps(
-            self._tags,
-            indent=4,
-            sort_keys=True
-        )))
+        logging.info('Tags: %s', json.dumps(self._tags, indent=4, sort_keys=True))
         return True
 
     def _set_update(self):
@@ -408,25 +448,25 @@ class CloudStackUtility:
             True
         """
         try:
-            self._updateStack = False
+            self._updatestack = False
             stack_name = self._config.get('environment', {}).get('stack_name', None)
-            response = self._cloudFormation.describe_stacks(StackName=stack_name)
+            response = self._cloudformation.describe_stacks(StackName=stack_name)
             stack = response['Stacks'][0]
             if stack['StackStatus'] == 'ROLLBACK_COMPLETE':
                 logging.info('stack is in ROLLBACK_COMPLETE status and should be deleted')
-                del_stack_resp = self._cloudFormation.delete_stack(StackName=stack_name)
-                logging.info('delete started for stack: {}'.format(stack_name))
-                logging.debug('delete_stack returned: {}'.format(json.dumps(del_stack_resp, indent=4)))
+                del_stack_resp = self._cloudformation.delete_stack(StackName=stack_name)
+                logging.info('delete started for stack: %s', stack_name)
+                logging.debug('delete_stack returned: %s', json.dumps(del_stack_resp, indent=4))
                 stack_delete = self.poll_stack()
                 if not stack_delete:
                     return False
 
             if stack['StackStatus'] in ['CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE']:
-                self._updateStack = True
+                self._updatestack = True
         except:
-            self._updateStack = False
+            self._updatestack = False
 
-        logging.info('update_stack: ' + str(self._updateStack))
+        logging.info('update_stack: %s', self._updatestack)
         return True
 
     def _archive_elements(self):
@@ -447,31 +487,27 @@ class CloudStackUtility:
         try:
             stackfile_key, propertyfile_key = self._craft_s3_keys()
 
-            if self._config.get('project_dir'):
-                template_file = os.path.join(self._config.get('project_dir'), self._config.get('environment', {}).get('template', None))
-            else:
-                template_file = self._config.get('environment', {}).get('template', None)
-
+            template_file = self._config.get('environment', {}).get('template', None)
             bucket = self._config.get('environment', {}).get('bucket', None)
             if not os.path.isfile(template_file):
-                logging.info("{} is not actually a file".format(template_file))
+                logging.info("%s is not actually a file", template_file)
                 return False
 
-            logging.info('Copying parameters to s3://{}/{}'.format(bucket, propertyfile_key))
+            logging.info('Copying parameters to s3://%s/%s', bucket, propertyfile_key)
             temp_file_name = '/tmp/{}'.format((str(uuid.uuid4()))[:8])
             with open(temp_file_name, 'w') as dump_file:
                 json.dump(self._parameters, dump_file, indent=4)
 
             self._s3.upload_file(temp_file_name, bucket, propertyfile_key)
 
-            logging.info('Copying {} to s3://{}/{}'.format(template_file, bucket, stackfile_key))
+            logging.info('Copying %s to s3://%s/%s', template_file, bucket, stackfile_key)
             self._s3.upload_file(template_file, bucket, stackfile_key)
 
-            self._templateUrl = 'https://s3.amazonaws.com/{}/{}'.format(bucket, stackfile_key)
-            logging.info("template_url: " + self._templateUrl)
+            self._templateurl = 'https://s3.amazonaws.com/'+str(bucket)+'/'+str(stackfile_key)
+            logging.info("template_url: %s", self._templateurl)
             return True
-        except Exception as x:
-            logging.error('Exception caught in copy_stuff_to_S3(): {}'.format(x))
+        except Exception as exc:
+            logging.error('Exception caught in copy_stuff_to_S3(): %s', exc)
             traceback.print_exc(file=sys.stdout)
             return False
 
@@ -500,7 +536,7 @@ class CloudStackUtility:
         stub = stub + ":" + str('%02d' % now.tm_min)
         stub = stub + ":" + str('%02d' % now.tm_sec)
 
-        if self._config.get('yaml'):
+        if self._yaml:
             template_key = stub + "/stack.yaml"
         else:
             template_key = stub + "/stack.json"
@@ -518,7 +554,7 @@ class CloudStackUtility:
         Returns:
             Good or bad; True or False
         """
-        logging.info('polling stack status, POLL_INTERVAL={}'.format(POLL_INTERVAL))
+        logging.info('polling stack status, POLL_INTERVAL=%s', POLL_INTERVAL)
         time.sleep(POLL_INTERVAL)
         completed_states = [
             'CREATE_COMPLETE',
@@ -528,41 +564,54 @@ class CloudStackUtility:
         stack_name = self._config.get('environment', {}).get('stack_name', None)
         while True:
             try:
-                response = self._cloudFormation.describe_stacks(StackName=stack_name)
+                response = self._cloudformation.describe_stacks(StackName=stack_name)
                 stack = response['Stacks'][0]
                 current_status = stack['StackStatus']
-                logging.info('Current status of {}: {}'.format(stack_name, current_status))
+                logging.info('Current status of %s: %s', stack_name, current_status)
                 if current_status.endswith('COMPLETE') or current_status.endswith('FAILED'):
                     if current_status in completed_states:
                         return True
-                    else:
-                        return False
+
+                    return False
 
                 time.sleep(POLL_INTERVAL)
             except ClientError as wtf:
                 if str(wtf).find('does not exist') == -1:
-                    logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
+                    logging.error('Exception caught in wait_for_stack(): %s', wtf)
                     traceback.print_exc(file=sys.stdout)
                     return False
-                else:
-                    logging.info('{} is gone'.format(stack_name))
-                    return True
+
+                logging.info('%s is gone', stack_name)
+                return True
+
             except Exception as wtf:
-                logging.error('Exception caught in wait_for_stack(): {}'.format(wtf))
+                logging.error('Exception caught in wait_for_stack(): %s', wtf)
                 traceback.print_exc(file=sys.stdout)
                 return False
 
     def _initialize_list(self):
+        """
+        Initialize list
+        :return:
+        """
         if not self._init_boto3_clients():
             logging.error('session initialization was not good')
             raise SystemError
 
     def _initialize_smash(self):
+        """
+        Initialize smash
+        :return:
+        """
         if not self._init_boto3_clients():
             logging.error('session initialization was not good')
             raise SystemError
 
     def _validate_ini_data(self):
+        """
+        Validate ini data
+        :return:
+        """
         if 'stack_name' not in self._config.get('environment', {}):
             return False
         elif 'bucket' not in self._config.get('environment', {}):
@@ -573,8 +622,15 @@ class CloudStackUtility:
             return True
 
     def _initialize_upsert(self):
+        """
+        Initialize upsert
+        :return:
+        """
         if not self._validate_ini_data():
             logging.error('INI file missing required bits; bucket and/or template and/or stack_name')
+            raise SystemError
+        elif not self._render_template():
+            logging.error('template rendering failed')
             raise SystemError
         elif not self._load_template():
             logging.error('template initialization was not good')
@@ -594,3 +650,10 @@ class CloudStackUtility:
         elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
+
+    def get_cloud_formation_client(self):
+        """
+        Get cloudformation client
+        :return:
+        """
+        return self._cloudformation

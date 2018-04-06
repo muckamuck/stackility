@@ -1,0 +1,30 @@
+[MASTER]
+
+# Specify a configuration file.
+#rcfile=
+
+# Python code to execute, usually for sys.path manipulation such as
+# pygtk.require().
+#init-hook=
+
+# Add files or directories to the blacklist. They should be base names, not
+# paths.
+#ignore=CVS,devopstools.py,containertools.py,_version.py,__init__.py,InfrastructureSmokeTests.py,AwsDevopsTools.py,AwsContainerTools.py
+ignore=CVS
+
+# Add files or directories matching the regex patterns to the blacklist. The
+# regex matches against base names, not paths.
+ignore-patterns=
+
+# Pickle collected data for later comparisons.
+persistent=yes
+
+# List of plugins (as comma separated values of python modules names) to load,
+# usually to register additional checkers.
+load-plugins=
+
+# Use multiple processes to speed up Pylint.
+jobs=1
+
+
+disable=too-many-function-args,too-many-branches,too-many-arguments,too-many-instance-attributes,line-too-long,no-else-return,broad-except,bare-except,redefined-builtin,too-few-public-methods,simplifiable-if-statement

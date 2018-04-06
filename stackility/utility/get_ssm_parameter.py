@@ -1,6 +1,10 @@
+'''
+For getting ssm parameters
+'''
 from __future__ import print_function
-import boto3
 import sys
+import boto3
+from botocore.exceptions import ClientError, ParamValidationError
 
 
 def get_ssm_parameter(parameter_name):
@@ -20,13 +24,18 @@ def get_ssm_parameter(parameter_name):
         )
 
         return response.get('Parameters', None)[0].get('Value', '')
-    except Exception:
-        pass
+    except ParamValidationError as err:
+        print("Parameter validation error: "+str(err))
+    except ClientError as err:
+        print("Unexpected error: "+str(err))
 
     return ''
 
 
 def main():
+    '''
+    Main
+    '''
     value = get_ssm_parameter(sys.argv[1])
     print(value, end='')
 
