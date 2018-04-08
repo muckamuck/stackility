@@ -1,6 +1,9 @@
-from stackility.CloudStackUtility import CloudStackUtility #noqa
-from stackility.stack_tool import StackTool #noqa
+'''
+init
+'''
 from datetime import datetime
+from stackility.cloudstackutility import CloudStackUtility #noqa
+from stackility.stack_tool import StackTool #noqa
 
 __title__ = 'stackility'
 __version__ = '0.5.2'

@@ -1,6 +1,10 @@
+'''
+For getting ssm parameters
+'''
+
 from __future__ import print_function
-import boto3
 import sys
+import boto3
 
 
 def get_ssm_parameter(parameter_name):
@@ -27,6 +31,10 @@ def get_ssm_parameter(parameter_name):
 
 
 def main():
+    '''
+    Main
+    :return:
+    '''
     value = get_ssm_parameter(sys.argv[1])
     print(value, end='')
 

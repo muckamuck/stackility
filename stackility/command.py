@@ -3,22 +3,26 @@ The command line interface to stackility.
 
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
-from stackility import CloudStackUtility
-from stackility import StackTool
 from configparser import RawConfigParser
-import click
 import time
 import json
-import boto3
-import logging
-import sys
-import os
 import traceback
+import os
+import sys
+import logging
+import boto3
+import click
+from stackility import CloudStackUtility
+from stackility import StackTool
 
 
 @click.group()
 @click.version_option(version='0.5.2')
 def cli():
+    '''
+    cli
+    :return:
+    '''
     pass
 
 
@@ -31,6 +35,17 @@ def cli():
 @click.option('--no-poll', help='Start the stack work but do not poll', is_flag=True)
 @click.option('--work-directory', '-w', help='Start in the given working directory')
 def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
+    '''
+    upsert
+    :param version:
+    :param stack:
+    :param ini:
+    :param dryrun:
+    :param yaml:
+    :param no_poll:
+    :param work_directory:
+    :return:
+    '''
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -78,6 +93,13 @@ def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
 @click.option('-r', '--region')
 @click.option('-f', '--profile')
 def delete(stack, region, profile):
+    '''
+    delete
+    :param stack:
+    :param region:
+    :param profile:
+    :return:
+    '''
     ini_data = {}
     environment = {}
 
@@ -102,6 +124,12 @@ def delete(stack, region, profile):
 @click.option('-r', '--region')
 @click.option('-f', '--profile')
 def list(region, profile):
+    '''
+    list
+    :param region:
+    :param profile:
+    :return:
+    '''
     ini_data = {}
     environment = {}
 
@@ -121,6 +149,11 @@ def list(region, profile):
 
 
 def start_upsert(ini_data):
+    '''
+    start upsert
+    :param ini_data:
+    :return:
+    '''
     stack_driver = CloudStackUtility(ini_data)
     poll_stack = not ini_data.get('no_poll', False)
     if stack_driver.upsert():
@@ -132,9 +165,9 @@ def start_upsert(ini_data):
                 try:
                     profile = ini_data.get('environment', {}).get('profile')
                     if profile:
-                        b3Sess = boto3.session.Session(profile_name=profile)
+                        b3sess = boto3.session.Session(profile_name=profile)
                     else:
-                        b3Sess = boto3.session.Session()
+                        b3sess = boto3.session.Session()
 
                     region = ini_data['environment']['region']
                     stack_name = ini_data['environment']['stack_name']
@@ -142,7 +175,7 @@ def start_upsert(ini_data):
                     cf_client = stack_driver.get_cloud_formation_client()
 
                     if not cf_client:
-                        cf_client = b3Sess.client('cloudformation', region_name=region)
+                        cf_client = b3sess.client('cloudformation', region_name=region)
 
                     stack_tool = stack_tool = StackTool(
                         stack_name,
@@ -151,7 +184,7 @@ def start_upsert(ini_data):
                     )
                     stack_tool.print_stack_info()
                 except Exception as wtf:
-                    logging.warning('there was a problems printing stack info: {}'.format(wtf))
+                    logging.warning('there was a problems printing stack info: %s', wtf)
 
                 sys.exit(0)
             else:
@@ -163,21 +196,40 @@ def start_upsert(ini_data):
 
 
 def start_list(command_line):
+    '''
+    start list
+    :param command_line:
+    :return:
+    '''
     stack_driver = CloudStackUtility(command_line)
     return stack_driver.list()
 
 
 def start_smash(command_line):
+    '''
+    start smash
+    :param command_line:
+    :return:
+    '''
     stack_driver = CloudStackUtility(command_line)
     return stack_driver.smash()
 
 
 def find_myself():
-    s = boto3.session.Session()
-    return s.region_name
+    '''
+    find myself
+    :return:
+    '''
+    sess = boto3.session.Session()
+    return sess.region_name
 
 
 def read_config_info(ini_file):
+    '''
+    read config info
+    :param ini_file:
+    :return:
+    '''
     try:
         config = RawConfigParser()
         config.optionxform = lambda option: option
@@ -190,10 +242,14 @@ def read_config_info(ini_file):
 
         return the_stuff
     except Exception as wtf:
-        logging.error('Exception caught in read_config_info(): {}'.format(wtf))
+        logging.error('Exception caught in read_config_info(): %s', wtf)
         traceback.print_exc(file=sys.stdout)
         return sys.exit(1)
 
 
 def validate_config_info():
+    '''
+    validate config info
+    :return:
+    '''
     return True
