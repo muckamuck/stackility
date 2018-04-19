@@ -12,6 +12,7 @@ import json
 import yaml
 import traceback
 import uuid
+import requests
 
 
 try:
@@ -124,6 +125,9 @@ class CloudStackUtility:
                     parameter['ParameterValue'] = self._parameters[required_parameter.lower()]
 
                 parameters.append(parameter)
+
+            self._analyze_stuff()
+            sys.exit(0)
 
             if self._config.get('dryrun', False):
                 logging.info('This was a dryrun')
@@ -639,6 +643,50 @@ class CloudStackUtility:
         elif not self._set_update():
             logging.error('there was a problem determining update or create')
             raise SystemError
+
+    def _analyze_stuff(self):
+        try:
+            scans_executed = False
+            tags_scan_status = 0
+            template_scan_status = 0
+            the_data = None
+            template_scanner = self._config.get('analysis', {}).get('template', None)
+            tags_scanner = self._config.get('analysis', {}).get('tags', None)
+
+            if template_scanner:
+                scans_executed = True
+                with open(self._config['environment']['template'], 'rb') as template_data:
+                    the_data = template_data.read()
+
+                r = requests.post(template_scanner, data=the_data)
+                answer = json.loads(r.content)
+                template_scan_status = answer.get('exit_status', -2)
+                print('\nTemplate scan:')
+                print(json.dumps(answer, indent=2))
+
+            if tags_scanner:
+                scans_executed = True
+                with open(self._config['environment']['template'], 'rb') as template_data:
+                    the_data = template_data.read()
+
+                r = requests.post(template_scanner, data=the_data)
+                answer = json.loads(r.content)
+                tags_scan_status = answer.get('exit_status', -2)
+                print('\nTag scan:')
+                print(json.dumps(answer, indent=2))
+
+            if not scans_executed:
+                return True
+            elif template_scan_status == 0 and tags_scan_status == 0:
+                print('All scans successful')
+                return True
+            else:
+                print('Failed scans')
+                return False
+        except Exception as wtf:
+            logging.error('Exception caught in analyze_stuff(): {}'.format(wtf))
+            traceback.print_exc(file=sys.stdout)
+            return False
 
     def get_cloud_formation_client(self):
         return self._cloudFormation
