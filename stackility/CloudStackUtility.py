@@ -126,8 +126,8 @@ class CloudStackUtility:
 
                 parameters.append(parameter)
 
-            self._analyze_stuff()
-            sys.exit(0)
+            if not self._analyze_stuff():
+                sys.exit(1)
 
             if self._config.get('dryrun', False):
                 logging.info('This was a dryrun')
@@ -645,14 +645,14 @@ class CloudStackUtility:
             raise SystemError
 
     def _analyze_stuff(self):
-        try:
-            scans_executed = False
-            tags_scan_status = 0
-            template_scan_status = 0
-            the_data = None
-            template_scanner = self._config.get('analysis', {}).get('template', None)
-            tags_scanner = self._config.get('analysis', {}).get('tags', None)
+        scans_executed = False
+        tags_scan_status = 0
+        template_scan_status = 0
+        the_data = None
+        template_scanner = self._config.get('analysis', {}).get('template', None)
+        tags_scanner = self._config.get('analysis', {}).get('tags', None)
 
+        try:
             if template_scanner:
                 scans_executed = True
                 with open(self._config['environment']['template'], 'rb') as template_data:
@@ -684,9 +684,14 @@ class CloudStackUtility:
                 print('Failed scans')
                 return False
         except Exception as wtf:
+            print('')
+            logging.info('template_scanner: {}'.format(template_scanner))
+            logging.info('    tags_scanner: {}'.format(tags_scanner))
+            print('')
             logging.error('Exception caught in analyze_stuff(): {}'.format(wtf))
             traceback.print_exc(file=sys.stdout)
-            return False
+
+        return False
 
     def get_cloud_formation_client(self):
         return self._cloudFormation

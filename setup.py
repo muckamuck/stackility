@@ -8,6 +8,7 @@ setup(
     author_email='Chuck.Muckamuck@gmail.com',
     install_requires=[
         "boto3>=1.4.3",
+        "requests>=2.18",
         "Click>=6.7",
         "PyYAML>=3.12",
         "pymongo>=3.4.0",
