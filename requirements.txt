@@ -4,3 +4,4 @@ click>=6.7
 twine>=1.9.1
 bumpversion>=0.5
 pymongo>=3.4.0
+cloudformation-validator>=0.2.28

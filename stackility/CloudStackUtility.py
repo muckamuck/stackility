@@ -13,6 +13,8 @@ import yaml
 import traceback
 import uuid
 import requests
+from builtins import input
+from cloudformation_validator.ValidateUtility import ValidateUtility
 
 
 try:
@@ -56,6 +58,7 @@ class CloudStackUtility:
     _templateUrl = None
     _updateStack = False
     _yaml = False
+    _validate = False
 
     def __init__(self, config_block):
         """
@@ -129,6 +132,11 @@ class CloudStackUtility:
             if not self._analyze_stuff():
                 sys.exit(1)
 
+            if self._config.get('validate', True):
+                logging.info('Validating cloudformation template')
+                if not self._validate_template():
+                    sys.exit(1)
+            logging.info('made it')
             if self._config.get('dryrun', False):
                 logging.info('This was a dryrun')
                 sys.exit(0)
@@ -695,3 +703,35 @@ class CloudStackUtility:
 
     def get_cloud_formation_client(self):
         return self._cloudFormation
+
+    def _yes_no(answer):
+        yes = set(['yes', 'y', 'ye', ''])
+        no = set(['no', 'n'])
+
+        while True:
+            choice = raw_input(answer).lower()
+            if choice in yes:
+                return True
+            elif choice in no:
+                return False
+            else:
+                print "Please respond with 'yes' or 'no'\n"
+
+    def _validate_template(self):
+
+        config_dict = {}
+        config_dict['template_file'] = self._config['environment']['template']
+
+        validator = ValidateUtility(config_dict)
+        results = validator.validate()
+        json_acceptable_string = results.replace("'", "\"")
+        results = json.loads(json_acceptable_string)
+
+        if 'failure_count' in results and int(results['failure_count'])>0:
+            logging.warn('Please fix failures and retry.')
+            return False
+
+        if 'file_results' in results and results['file_results']:
+                return self._yes_no('There are errors in the cloudformation template. Do you wish to continue?')
+
+        return True

@@ -30,7 +30,8 @@ def cli():
 @click.option('--yaml', '-y', help='YAML template (deprecated - YAMLness is now detected at run-time', is_flag=True)
 @click.option('--no-poll', help='Start the stack work but do not poll', is_flag=True)
 @click.option('--work-directory', '-w', help='Start in the given working directory')
-def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
+@click.option('--validate','-e',help='Validate cloudformation template before deployment', required=False, is_flag=True)
+def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory, validate):
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
         print('[environment] section is required in the INI file')
@@ -58,6 +59,11 @@ def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
         ini_data['dryrun'] = True
     else:
         ini_data['dryrun'] = False
+
+    if validate:
+        ini_data['validate'] = True
+    else:
+        ini_data['validate'] = False
 
     if stack:
         ini_data['environment']['stack_name'] = stack
