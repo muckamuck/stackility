@@ -21,6 +21,13 @@ except ImportError:
     from yaml import Loader
 
 
+def default_ctor(loader, tag_suffix, node):
+    '''
+    Some extra bits to use the short form of intrinsic functions in YAML templates.
+    '''
+    return tag_suffix + ' ' + str(node.value)
+
+
 try:
     POLL_INTERVAL = os.environ.get('CSU_POLL_INTERVAL', 30)
 except:
@@ -143,6 +150,7 @@ class CloudStackUtility:
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
+                logging.info('existing stack ID: {}'.format(stack.get('StackId', 'unknown')))
             else:
                 self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
                 self._tags.append({"Key": "ANSWER", "Value": str(42)})
@@ -153,9 +161,7 @@ class CloudStackUtility:
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
                     Tags=self._tags
                 )
-                logging.info('stack: {}'.format(json.dumps(stack,
-                                                           indent=4,
-                                                           sort_keys=True)))
+                logging.info('new stack ID: {}'.format(stack.get('StackId', 'unknown')))
         except Exception as x:
             logging.error('Exception caught in upsert(): {}'.format(x))
             if self._verbose:
@@ -208,11 +214,12 @@ class CloudStackUtility:
                 logging.info('template is not a valid JSON template')
         except Exception as x:
             template_decoded = False
-            logging.warning('Exception caught in load_template(json): {}'.format(x))
+            logging.debug('Exception caught in load_template(json): {}'.format(x))
             logging.info('template is not JSON')
 
         if not template_decoded:
             try:
+                yaml.add_multi_constructor('', default_ctor, Loader=Loader)
                 with open(template_file, 'r') as f:
                     self._template = yaml.load(f, Loader=Loader)
 
@@ -222,9 +229,9 @@ class CloudStackUtility:
                     logging.info('template is YAML')
                 else:
                     logging.info('template is not a valid YAML template')
-            except Exception:
+            except Exception as x:
                 template_decoded = False
-                logging.warning('Exception caught in load_template(yaml): {}'.format(x))
+                logging.debug('Exception caught in load_template(yaml): {}'.format(x))
                 logging.info('template is not YAML')
 
         return template_decoded
