@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC thing
+Parameters:
+  theCIDR:
+    Description: The CIDR block of our new friend
+    Type: String
+  azOne:
+    Description: The AZ for the first subnet, taken from Default
+    Type: String
+    Default: us-west-2a
+  bar:
+    Description: Bar
+    Type: String
+    Default: '{{bar}}'
+  baz:
+    Description: Baz
+    Type: String
+    Default: '{{foo}}'
+  subnetCIDROne:
+    Description: The CIDR block of our new friend
+    Type: String
+Resources:
+  theVPC:
+    Type: AWS::EC2::VPC
+    Metadata:
+      Comment: Wait a second! I thought I could not comment in JSON.
+    Properties:
+      CidrBlock: !Ref 'theCIDR'
+      EnableDnsHostnames: 'false'
+      EnableDnsSupport: 'true'
+  subnetOne:
+    Type: AWS::EC2::Subnet
+    DependsOn: theVPC
+    Properties:
+      AvailabilityZone: !Ref 'azOne'
+      CidrBlock: !Ref 'subnetCIDROne'
+      MapPublicIpOnLaunch: 'false'
+      VpcId: !Ref 'theVPC'
