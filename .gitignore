@@ -6,3 +6,4 @@ dist/
 *.pyc
 x
 x.sh
+errors_file
