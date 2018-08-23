@@ -65,6 +65,13 @@ that the template file given in the ```[environment]``` section is a [Jinja2](ht
 template file. The given template is rendered with the key/value pairs injected before the upload to the S3
 bucket.
 
+**[analysis]:** - (experimental) if this section exists in the INI file then
+[CloudFormation Validator](https://github.com/rubelw/cloudformation-validator) is used to 
+perform static analysis on the given template. Items in this section:
+
+* enforced - true | false, if *true* then stack create/update is aborted when errors are found
+  else if *false* the analysis is only advisory.
+
 #### Example parameters file:
 ```
 [environment]
@@ -89,6 +96,9 @@ api_key=[ssm:api_key]
 [meta-parameters]
 food=pizza
 drink=beer
+
+[analysis]
+enforced=false
 ```
 
 #### Example invocations:
