@@ -361,26 +361,28 @@ class CloudStackUtility:
             a value, decrypted if needed, if successful or None if things go
             sideways.
         """
-        val = None
-        secure_string = False
+        first_token = '__first_token___'
+        next_token = first_token
         try:
-            response = self._ssm.describe_parameters(
-                Filters=[{'Key': 'Name', 'Values': [p]}]
-            )
+            while next_token:
+                if next_token == first_token:
+                    response = self._ssm.describe_parameters(
+                        Filters=[{'Key': 'Name', 'Values': [p]}]
+                    )
+                else:
+                    response = self._ssm.describe_parameters(
+                        Filters=[{'Key': 'Name', 'Values': [p]}],
+                        NextToken=next_token
+                    )
 
-            if 'Parameters' in response:
-                t = response['Parameters'][0].get('Type', None)
-                if t == 'String':
-                    secure_string = False
-                elif t == 'SecureString':
-                    secure_string = True
-
-                response = self._ssm.get_parameter(Name=p, WithDecryption=secure_string)
-                val = response.get('Parameter', {}).get('Value', None)
+                next_token = response.get('NextToken', None)
+                if 'Parameters' in response:
+                    response = self._ssm.get_parameter(Name=p, WithDecryption=True)
+                    return response.get('Parameter', {}).get('Value', None)
         except Exception:
             pass
 
-        return val
+        return None
 
     def _fill_parameters(self):
         """
