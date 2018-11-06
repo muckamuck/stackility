@@ -3,7 +3,7 @@ from stackility.stack_tool import StackTool #noqa
 from datetime import datetime
 
 __title__ = 'stackility'
-__version__ = '0.6.2'
+__version__ = '0.6.3'
 __author__ = 'Mr. Chuck Muckamuck'
 __author_email__ = 'chuck.muckamuck@gmail.com'
 __license__ = '''
