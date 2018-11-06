@@ -82,6 +82,14 @@ class CloudStackUtility:
         """
         if config_block:
             self._config = config_block
+            template_file = config_block.get('environment', {}).get('template', None)
+
+            '''
+            Take a moment to verify the sanity of the request
+            '''
+            if not os.path.isfile(template_file):
+                logging.error('template file \'{}\' does not exist, I give up!'.format(template_file))
+                sys.exit(1)
         else:
             logging.error('config block was garbage')
             raise SystemError
