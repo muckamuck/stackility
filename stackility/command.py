@@ -16,7 +16,7 @@ from stackility import CloudStackUtility
 from stackility import StackTool
 
 @click.group()
-@click.version_option(version='0.6.3')
+@click.version_option(version='0.6.4')
 def cli():
     """
     Nothing
