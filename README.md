@@ -139,5 +139,6 @@ twine upload dist/*
 #### TODO:
 
 * print CloudFormation Outputs at the end of the upsert command
-* the example directory sucks; fix it
 * investigate giving an IAM role, something like the profile  selection
+* finish the change set work
+* add drift command and option on upsert
