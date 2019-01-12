@@ -134,22 +134,24 @@ def list(region, profile):
 @click.option('--stack', '-s', help='stack name', required=True)
 @click.option('-r', '--region', help='region where the stack lives')
 @click.option('-f', '--profile', help='AWS profile to access resources')
-@click.option('-v', '--verbose', help='determine state of stack resources', is_flag=True)
-def drift(stack, region, profile, verbose):
+def drift(stack, region, profile):
     """
     Produce a CloudFormation drift report for the given stack.
     """
-    logging.info('stack: {}'.format(stack))
-    logging.info('region: {}'.format(region))
-    logging.info('profile: {}'.format(profile))
-    logging.info('verbose: {}'.format(verbose))
+    logging.debug('finding drift - stack: {}'.format(stack))
+    logging.debug('region: {}'.format(region))
+    logging.debug('profile: {}'.format(profile))
     tool = DriftTool(
         Stack=stack,
         Region=region,
         Profile=profile,
-        Verbose=verbose
+        Verbose=True
     )
-    tool.determine_drift()
+
+    if tool.determine_drift():
+        sys.exit(0)
+    else:
+        sys.exit(1)
 
 
 def start_upsert(ini_data):
