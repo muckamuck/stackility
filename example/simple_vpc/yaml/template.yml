@@ -6,7 +6,7 @@ Parameters:
     Type: String
   azOne:
     Description: The AZ for the first subnet, taken from Default
-    Type: String
+    Type: AWS::EC2::AvailabilityZone::Name
     Default: us-west-2a
   httpPort:
     Description: Probably 80
@@ -35,17 +35,16 @@ Resources:
     Properties:
       CidrBlock:
         Ref: theCIDR
-      EnableDnsHostnames: 'false'
-      EnableDnsSupport: 'true'
+      EnableDnsHostnames: false
+      EnableDnsSupport: true
   subnetOne:
     Type: AWS::EC2::Subnet
-    DependsOn: theVPC
     Properties:
       AvailabilityZone:
         Ref: azOne
       CidrBlock:
         Ref: subnetCIDROne
-      MapPublicIpOnLaunch: 'false'
+      MapPublicIpOnLaunch: false
       VpcId:
         Ref: theVPC
   exampleSecuityGroup:
@@ -70,10 +69,10 @@ Resources:
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: '-1'
-          FromPort: '-1'
-          ToPort: '-1'
+          # FromPort: '-1'
+          # ToPort: '-1'
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: '1'
-          ToPort: '65535'
+          FromPort: 1
+          ToPort: 65535
           CidrIp: 0.0.0.0/0
