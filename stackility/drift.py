@@ -5,6 +5,7 @@ import os
 import time
 import logging
 import boto3
+from tabulate import tabulate
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,15 +111,16 @@ class DriftTool(object):
                     drift_answer
                 ))
 
-                if drift_answer == 'DRIFTED' and self._verbose:
-                    self._print_drift_report()
-
-                return True
+                if drift_answer == 'DRIFTED':
+                    if self._verbose:
+                        self._print_drift_report()
+                    return False
+                else:
+                    return True
             else:
                 logging.warning('drift_request_id is None')
-                return False
 
-            return True
+            return False
         except Exception as wtf:
             logging.error(wtf, exc_info=True)
             return False
@@ -136,16 +138,23 @@ class DriftTool(object):
         Note: not yet implemented
         """
         try:
-            logging.info('finding modified resources')
             response = self._cloud_formation.describe_stack_resources(StackName=self._stack_name)
+            rows = []
             for resource in response.get('StackResources', []):
-                logging.info(
-                    '%s - %s [%s]: %s',
-                    resource.get('LogicalResourceId', 'unknown'),
-                    resource.get('PhysicalResourceId', 'unknown'),
-                    resource.get('ResourceStatus', 'unknown'),
-                    resource.get('DriftInformation', {}).get('StackResourceDriftStatus', 'unknown')
-                )
+                row = []
+                row.append(resource.get('LogicalResourceId', 'unknown'))
+                row.append(resource.get('PhysicalResourceId', 'unknown'))
+                row.append(resource.get('ResourceStatus', 'unknown'))
+                row.append(resource.get('DriftInformation', {}).get('StackResourceDriftStatus', 'unknown'))
+                rows.append(row)
+
+            print('Drift Report:')
+            print(tabulate(rows, headers=[
+                'Logical ID',
+                'Physical ID',
+                'Resource Status',
+                'Drift Info'
+            ]))
         except Exception as wtf:
             logging.error(wtf, exc_info=True)
             return False
