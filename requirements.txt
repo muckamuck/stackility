@@ -1,7 +1,9 @@
-boto3>=1.4
+boto3>=1.9
 PyYAML>=3.11
 click>=6.7
-twine>=1.9.1
+twine>=1.12
 bumpversion>=0.5
-pymongo>=3.4.0
-pylint
+pymongo>=3.7
+pylint>=1.8
+cfn-lint>=0.11
+grip>=4.5
