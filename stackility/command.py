@@ -14,6 +14,8 @@ import boto3
 import click
 from stackility import CloudStackUtility
 from stackility import StackTool
+from stackility import DriftTool
+
 
 @click.group()
 @click.version_option(version='0.6.4')
@@ -31,10 +33,10 @@ def cli():
 @click.option('--version', '-v', help='code version')
 @click.option('--stack', '-s', help='stack name')
 @click.option('--ini', '-i', help='INI file with needed information', required=True)
-@click.option('--dryrun', '-d', help='dry run', is_flag=True)
+@click.option('--dryrun', '-d', help='dry run, generate a change set report', is_flag=True)
 @click.option(
     '--yaml', '-y',
-    help='YAML template (deprecated - YAMLness is now detected at run-time',
+    help='YAML template (deprecated - YAMLness is now detected at run-time)',
     is_flag=True
 )
 @click.option('--no-poll', help='Start the stack work but do not poll', is_flag=True)
@@ -42,19 +44,7 @@ def cli():
 def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
     """
     The main reason we have arrived here. This is the entry-point for the
-    utility to update / create an CloudFormation stack
-
-    Args:
-        version - [option] print th version of the utility
-        stack - [optional] specify the CloudFomation stack name
-        ini - [required] specify the path to the INI file for the upsert
-        dryrun - [optional] if found do not pass the template to CloudFormation
-        yaml - [deprecated]
-        no_poll - [optional] send stack to CloudFormation and exit
-        work_directory - [optional] specify where to start
-
-    Returns:
-       nothing
+    utility to create/update a CloudFormation stack.
     """
     ini_data = read_config_info(ini)
     if 'environment' not in ini_data:
@@ -94,14 +84,6 @@ def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
 def delete(stack, region, profile):
     """
     Delete the given CloudFormation stack.
-
-    Args:
-        stack - [required] indicatate the stack to smash
-        region - [optional] indicate where the stack is located
-        profile - [optionl[ AWS crendential profile
-
-    Returns:
-       sys.exit() - 0 is good and 1 is bad
     """
     ini_data = {}
     environment = {}
@@ -128,14 +110,7 @@ def delete(stack, region, profile):
 @click.option('-f', '--profile')
 def list(region, profile):
     """
-    List all the CloudFormation stacks
-
-    Args:
-        region - [optional] indicate where the stacks are located
-        profile - [optionl[ AWS crendential profile
-
-    Returns:
-       prints a list of all CloudFormation stacks
+    List all the CloudFormation stacks in the given region.
     """
     ini_data = {}
     environment = {}
@@ -153,6 +128,28 @@ def list(region, profile):
         sys.exit(0)
     else:
         sys.exit(1)
+
+
+@cli.command()
+@click.option('--stack', '-s', help='stack name', required=True)
+@click.option('-r', '--region', help='region where the stack lives')
+@click.option('-f', '--profile', help='AWS profile to access resources')
+@click.option('-v', '--verbose', help='determine state of stack resources', is_flag=True)
+def drift(stack, region, profile, verbose):
+    """
+    Produce a CloudFormation drift report for the given stack.
+    """
+    logging.info('stack: {}'.format(stack))
+    logging.info('region: {}'.format(region))
+    logging.info('profile: {}'.format(profile))
+    logging.info('verbose: {}'.format(verbose))
+    tool = DriftTool(
+        Stack=stack,
+        Region=region,
+        Profile=profile,
+        Verbose=verbose
+    )
+    tool.determine_drift()
 
 
 def start_upsert(ini_data):

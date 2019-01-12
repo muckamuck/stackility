@@ -30,7 +30,7 @@ def default_ctor(loader, tag_suffix, node):
 
 
 try:
-    POLL_INTERVAL = os.environ.get('CSU_POLL_INTERVAL', 30)
+    POLL_INTERVAL = int(os.environ.get('CSU_POLL_INTERVAL', 30))
 except:
     POLL_INTERVAL = 30
 
@@ -138,12 +138,17 @@ class CloudStackUtility:
                 sys.exit(1)
 
             if self._config.get('dryrun', False):
+                logging.info('Generating change set')
+                set_id = self._generate_change_set(parameters)
+                if set_id:
+                    self._describe_change_set(set_id)
+
                 logging.info('This was a dryrun')
                 sys.exit(0)
 
+            self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
+            self._tags.append({"Key": "ANSWER", "Value": str(42)})
             if self._updateStack:
-                self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
-                self._tags.append({"Key": "ANSWER", "Value": str(42)})
                 stack = self._cloudFormation.update_stack(
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
@@ -153,8 +158,6 @@ class CloudStackUtility:
                 )
                 logging.info('existing stack ID: {}'.format(stack.get('StackId', 'unknown')))
             else:
-                self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
-                self._tags.append({"Key": "ANSWER", "Value": str(42)})
                 stack = self._cloudFormation.create_stack(
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
@@ -164,13 +167,89 @@ class CloudStackUtility:
                 )
                 logging.info('new stack ID: {}'.format(stack.get('StackId', 'unknown')))
         except Exception as x:
-            logging.error('Exception caught in upsert(): {}'.format(x))
             if self._verbose:
-                traceback.print_exc(file=sys.stdout)
+                logging.error(x, exc_info=True)
+            else:
+                logging.error(x, exc_info=False)
 
             return False
 
         return True
+
+    def _describe_change_set(self, set_id):
+        complete_states = ['CREATE_COMPLETE', 'FAILED', 'UNKNOWN']
+        try:
+            logging.info('polling change set, POLL_INTERVAL={}'.format(POLL_INTERVAL))
+            response = self._cloudFormation.describe_change_set(ChangeSetName=set_id)
+            status = response.get('Status', 'UNKNOWN')
+            while status not in complete_states:
+                logging.info('current set status: {}'.format(status))
+                time.sleep(POLL_INTERVAL)
+                response = self._cloudFormation.describe_change_set(ChangeSetName=set_id)
+                status = response.get('Status', 'UNKNOWN')
+
+            logging.info('current set status: {}'.format(status))
+            print('\n')
+            print('Change set report:')
+            for change in response.get('Changes', []):
+                print(
+                    json.dumps(
+                        change,
+                        indent=2,
+                        default=json_util.default
+                    )
+                )
+                print('\n')
+
+            logging.info('cleaning up change set')
+            self._cloudFormation.delete_change_set(ChangeSetName=set_id)
+            return True
+        except Exception as ruh_roh_shaggy:
+            if self._verbose:
+                logging.error(ruh_roh_shaggy, exc_info=True)
+            else:
+                logging.error(ruh_roh_shaggy, exc_info=False)
+
+        return False
+
+    def _generate_change_set(self, parameters):
+        try:
+            self._tags.append({"Key": "CODE_VERSION_SD", "Value": self._config.get('codeVersion')})
+            self._tags.append({"Key": "ANSWER", "Value": str(42)})
+            set_name = 'chg{}'.format(int(time.time()))
+            if self._updateStack:
+                changes = self._cloudFormation.create_change_set(
+                    StackName=self._config.get('environment', {}).get('stack_name', None),
+                    TemplateURL=self._templateUrl,
+                    Parameters=parameters,
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Tags=self._tags,
+                    ChangeSetName=set_name,
+                    ChangeSetType='UPDATE'
+                )
+            else:
+                changes = self._cloudFormation.create_change_set(
+                    StackName=self._config.get('environment', {}).get('stack_name', None),
+                    TemplateURL=self._templateUrl,
+                    Parameters=parameters,
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Tags=self._tags,
+                    ChangeSetName=set_name,
+                    ChangeSetType='CREATE'
+                )
+            if self._verbose:
+                logging.info('Change set: {}'.format(
+                    json.dumps(changes, indent=2, default=json_util.default)
+                ))
+
+            return changes.get('Id', None)
+        except Exception as ruh_roh_shaggy:
+            if self._verbose:
+                logging.error(ruh_roh_shaggy, exc_info=True)
+            else:
+                logging.error(ruh_roh_shaggy, exc_info=False)
+
+        return None
 
     def _render_template(self):
         buf = None
@@ -341,7 +420,7 @@ class CloudStackUtility:
             for key in parms:
                 key = str(key)
                 if 'Default' in parms[key] and key not in self._parameters:
-                    self._parameters[key] = parms[key]['Default']
+                    self._parameters[key] = str(parms[key]['Default'])
 
         except Exception as wtf:
             logging.error('Exception caught in fill_defaults(): {}'.format(wtf))
@@ -402,29 +481,32 @@ class CloudStackUtility:
         self._fill_defaults()
 
         for k in self._parameters.keys():
-            if self._parameters[k].startswith(self.SSM) and self._parameters[k].endswith(']'):
-                parts = self._parameters[k].split(':')
-                tmp = parts[1].replace(']', '')
-                val = self._get_ssm_parameter(tmp)
-                if val:
-                    self._parameters[k] = val
-                else:
-                    logging.error('SSM parameter {} not found'.format(tmp))
-                    return False
-            elif self._parameters[k] == self.ASK:
-                val = None
-                a1 = '__x___'
-                a2 = '__y___'
-                prompt1 = "Enter value for '{}': ".format(k)
-                prompt2 = "Confirm value for '{}': ".format(k)
-                while a1 != a2:
-                    a1 = getpass.getpass(prompt=prompt1)
-                    a2 = getpass.getpass(prompt=prompt2)
-                    if a1 == a2:
-                        val = a1
+            try:
+                if self._parameters[k].startswith(self.SSM) and self._parameters[k].endswith(']'):
+                    parts = self._parameters[k].split(':')
+                    tmp = parts[1].replace(']', '')
+                    val = self._get_ssm_parameter(tmp)
+                    if val:
+                        self._parameters[k] = val
                     else:
-                        print('values do not match, try again')
-                self._parameters[k] = val
+                        logging.error('SSM parameter {} not found'.format(tmp))
+                        return False
+                elif self._parameters[k] == self.ASK:
+                    val = None
+                    a1 = '__x___'
+                    a2 = '__y___'
+                    prompt1 = "Enter value for '{}': ".format(k)
+                    prompt2 = "Confirm value for '{}': ".format(k)
+                    while a1 != a2:
+                        a1 = getpass.getpass(prompt=prompt1)
+                        a2 = getpass.getpass(prompt=prompt2)
+                        if a1 == a2:
+                            val = a1
+                        else:
+                            print('values do not match, try again')
+                    self._parameters[k] = val
+            except:
+                pass
 
         return True
 
@@ -443,17 +525,19 @@ class CloudStackUtility:
             the fact that Murphy was an optimist.
         """
         tags = self._config.get('tags', {})
+        logging.info('Tags:')
         for tag_name in tags.keys():
             tag = {}
             tag['Key'] = tag_name
             tag['Value'] = tags[tag_name]
             self._tags.append(tag)
+            logging.info('{} = {}'.format(tag_name, tags[tag_name]))
 
-        logging.info('Tags: {}'.format(json.dumps(
+        logging.debug(json.dumps(
             self._tags,
-            indent=4,
+            indent=2,
             sort_keys=True
-        )))
+        ))
         return True
 
     def _set_update(self):
@@ -587,7 +671,7 @@ class CloudStackUtility:
                 response = self._cloudFormation.describe_stacks(StackName=stack_name)
                 stack = response['Stacks'][0]
                 current_status = stack['StackStatus']
-                logging.info('Current status of {}: {}'.format(stack_name, current_status))
+                logging.info('current status of {}: {}'.format(stack_name, current_status))
                 if current_status.endswith('COMPLETE') or current_status.endswith('FAILED'):
                     if current_status in completed_states:
                         return True
