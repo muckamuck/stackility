@@ -8,6 +8,14 @@ Parameters:
     Description: The AZ for the first subnet, taken from Default
     Type: String
     Default: us-west-2a
+  httpPort:
+    Description: Probably 80
+    Type: Number
+    Default: '80'
+  httpsPort:
+    Description: Probably 443
+    Type: Number
+    Default: 8443
   bar:
     Description: Bar
     Type: String
@@ -40,3 +48,32 @@ Resources:
       MapPublicIpOnLaunch: 'false'
       VpcId:
         Ref: theVPC
+  exampleSecuityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http connections
+      GroupName: web
+      VpcId:
+        Ref: theVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort:
+            Ref: httpPort
+          ToPort:
+            Ref: httpPort
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort:
+            Ref: httpsPort
+          ToPort:
+            Ref: httpsPort
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          FromPort: '-1'
+          ToPort: '-1'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '1'
+          ToPort: '65535'
+          CidrIp: 0.0.0.0/0
