@@ -1,22 +1,33 @@
 ## Stackility
-Description: a utility to help create CloudFormation stacks.
+Description: a utility for creating, updating, listing and deleting AWS
+CloudFormation stacks. Also, the utility can be used for determining the
+drift status of CloudFormation stacks.
 
 #### Usage:
 ```
 stackility upsert [OPTIONS]
 
+  The main reason we have arrived here. This is the entry-point for the
+  utility to create/update a CloudFormation stack.
+
 Options:
-  -v, --version TEXT  code version
-  -s, --stack TEXT    stack name
-  -i, --ini TEXT      INI file with needed information  [required]
-  -d, --dryrun        dry run
-  -y, --yaml          YAML template
-  --help              Show this message and exit.
+  -v, --version TEXT         code version
+  -s, --stack TEXT           stack name
+  -i, --ini TEXT             INI file with needed information  [required]
+  -d, --dryrun               dry run, generate a change set report
+  -y, --yaml                 YAML template (deprecated - YAMLness is now
+                             detected at run-time)
+  --no-poll                  Start the stack work but do not poll
+  -w, --work-directory TEXT  Start in the given working directory
+  --help                     Show this message and exit.
+
+See the *Properties* section below for a description of the INI file format.
 ```
-See the *Properties* section below for a description about INI file format.
 
 ```
 stackility delete [OPTIONS]
+
+  Delete the given CloudFormation stack.
 
 Options:
   -s, --stack TEXT    [required]
@@ -26,11 +37,25 @@ Options:
 ```
 
 ```
-stackility list [OPTIONS]
+ stackility list [OPTIONS]
+
+  List all the CloudFormation stacks in the given region.
 
 Options:
   -r, --region TEXT
   -f, --profile TEXT
+  --help              Show this message and exit.
+```
+
+```
+stackility drift [OPTIONS]
+
+  Produce a CloudFormation drift report for the given stack.
+
+Options:
+  -s, --stack TEXT    stack name  [required]
+  -r, --region TEXT   region where the stack lives
+  -f, --profile TEXT  AWS profile to access resources
   --help              Show this message and exit.
 ```
 
@@ -114,6 +139,10 @@ enforced=false
 
 * list the CloudFormation stacks in us-east-2
 
+```stackility drift --stack example-stack --region us-east-2```
+
+* Generate a CloudFormation drift report in us-east-2
+
 #### Environment notes:
 By default the utility polls the status of stack operation every 30 seconds. If
 needed ```CSU_POLL_INTERVAL``` can be set to a number of seconds to override the 
@@ -140,5 +169,3 @@ twine upload dist/*
 
 * print CloudFormation Outputs at the end of the upsert command
 * investigate giving an IAM role, something like the profile  selection
-* finish the change set work
-* add drift command and option on upsert
