@@ -4,7 +4,7 @@ from stackility.drift import DriftTool #noqa
 from datetime import datetime
 
 __title__ = 'stackility'
-__version__ = '0.6.4'
+__version__ = '0.7.0'
 __author__ = 'Mr. Chuck Muckamuck (obviously a pseudonym)'
 __author_email__ = 'chuck.muckamuck@gmail.com'
 __license__ = '''
