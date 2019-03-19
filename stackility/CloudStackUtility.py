@@ -458,8 +458,8 @@ class CloudStackUtility:
                 if 'Parameters' in response:
                     response = self._ssm.get_parameter(Name=p, WithDecryption=True)
                     return response.get('Parameter', {}).get('Value', None)
-        except Exception:
-            pass
+        except Exception as ruh_roh:
+            logging.error(ruh_roh, exc_info=False)
 
         return None
 
