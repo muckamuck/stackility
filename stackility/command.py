@@ -19,7 +19,7 @@ from stackility import DriftTool
 
 
 @click.group()
-@click.version_option(version='0.7.1')
+@click.version_option(version='0.7.2')
 def cli():
     """
     A utility for creating, updating, listing and deleting AWS CloudFormation stacks.
