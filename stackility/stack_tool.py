@@ -101,28 +101,46 @@ class StackTool:
         Returns:
             None
         '''
+        first_token = '__FIRST_TOKEN_5ed1f6be'
+        keep_going = True
+        next_token = first_token
+        rows = []
         try:
-            response = self._cf_client.describe_stack_events(
-                StackName=self._stack_name
-            )
+            while keep_going and next_token:
+                if next_token == first_token:
+                    response = self._cf_client.describe_stack_events(
+                        StackName=self._stack_name
+                    )
+                else:
+                    response = self._cf_client.describe_stack_events(
+                        StackName=self._stack_name,
+                        NextToken=next_token
+                    )
 
-            print('\nEvents for the current upsert:')
-            rows = []
-            for event in response['StackEvents']:
-                row = []
-                event_time = event.get('Timestamp')
-                row.append(event_time.strftime('%x %X'))
-                row.append(event.get('LogicalResourceId'))
-                row.append(event.get('ResourceStatus'))
-                row.append(event.get('ResourceStatusReason', ''))
-                rows.append(row)
+                next_token = response.get('NextToken', None)
+                for event in response['StackEvents']:
+                    row = []
+                    event_time = event.get('Timestamp')
+                    if int(event_time.strftime('%s')) < start_time:
+                        keep_going = False
+                        break
 
-            print(tabulate(rows, headers=['Time', 'Logical ID', 'Status', 'Message']))
-            return response
+                    row.append(event_time.strftime('%x %X'))
+                    row.append(event.get('LogicalResourceId'))
+                    row.append(event.get('ResourceStatus'))
+                    row.append(event.get('ResourceStatusReason', ''))
+                    rows.append(row)
+
+            if len(rows) > 0:
+                print('\nEvents for the current upsert:')
+                print(tabulate(rows, headers=['Time', 'Logical ID', 'Status', 'Message']))
+                return True
+            else:
+                print('\nNo stack events found\n')
         except Exception as wtf:
             print(wtf)
-            return None
 
+        return False
 
 if __name__ == '__main__':
     cf_client = None
