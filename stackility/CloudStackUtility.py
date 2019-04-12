@@ -440,24 +440,9 @@ class CloudStackUtility:
             a value, decrypted if needed, if successful or None if things go
             sideways.
         """
-        first_token = '__first_token___'
-        next_token = first_token
         try:
-            while next_token:
-                if next_token == first_token:
-                    response = self._ssm.describe_parameters(
-                        Filters=[{'Key': 'Name', 'Values': [p]}]
-                    )
-                else:
-                    response = self._ssm.describe_parameters(
-                        Filters=[{'Key': 'Name', 'Values': [p]}],
-                        NextToken=next_token
-                    )
-
-                next_token = response.get('NextToken', None)
-                if 'Parameters' in response:
-                    response = self._ssm.get_parameter(Name=p, WithDecryption=True)
-                    return response.get('Parameter', {}).get('Value', None)
+            response = self._ssm.get_parameter(Name=p, WithDecryption=True)
+            return response.get('Parameter', {}).get('Value', None)
         except Exception as ruh_roh:
             logging.error(ruh_roh, exc_info=False)
 

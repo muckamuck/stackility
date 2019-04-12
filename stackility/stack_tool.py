@@ -3,7 +3,10 @@ import sys
 import boto3
 import logging
 import traceback
+import datetime
 from tabulate import tabulate
+
+zero_time = datetime.datetime.utcfromtimestamp(0)
 
 
 class StackTool:
@@ -88,11 +91,43 @@ class StackTool:
             print(wtf)
             return None
 
+    def print_stack_events(self, start_time):
+        '''
+        List events from the given stack
+
+        Args:
+            None
+
+        Returns:
+            None
+        '''
+        try:
+            response = self._cf_client.describe_stack_events(
+                StackName=self._stack_name
+            )
+
+            print('\nEvents for the current upsert:')
+            rows = []
+            for event in response['StackEvents']:
+                row = []
+                event_time = event.get('Timestamp')
+                row.append(event_time.strftime('%x %X'))
+                row.append(event.get('LogicalResourceId'))
+                row.append(event.get('ResourceStatus'))
+                row.append(event.get('ResourceStatusReason', ''))
+                rows.append(row)
+
+            print(tabulate(rows, headers=['Time', 'Logical ID', 'Status', 'Message']))
+            return response
+        except Exception as wtf:
+            print(wtf)
+            return None
+
 
 if __name__ == '__main__':
     cf_client = None
     try:
-        region = os.environ.get('region', 'us-east-2')
+        region = os.environ.get('region', 'us-east-1')
         b3Sess = boto3.session.Session()
         cf_client = b3Sess.client('cloudformation', region_name=region)
     except Exception as wtf:
@@ -100,5 +135,10 @@ if __name__ == '__main__':
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
 
-    stack_tool = StackTool(sys.argv[1], None, 'us-east-2', cf_client)
+    int(datetime.datetime.now().strftime('%s'))
+    int(datetime.datetime.utcnow().strftime('%s'))
+    stack_tool = StackTool(sys.argv[1], 'us-east-1', cf_client)
+    '''
     stack_tool.print_stack_info()
+    '''
+    stack_tool.print_stack_events()

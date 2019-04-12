@@ -4,6 +4,7 @@ The command line interface to stackility.
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
 from configparser import RawConfigParser
+import datetime
 import time
 import json
 import logging
@@ -164,32 +165,38 @@ def start_upsert(ini_data):
     """
     stack_driver = CloudStackUtility(ini_data)
     poll_stack = not ini_data.get('no_poll', False)
+    start_time = int(datetime.datetime.utcnow().strftime('%s'))
     if stack_driver.upsert():
         logging.info('stack create/update was started successfully.')
 
         if poll_stack:
+            stack_tool = None
+            try:
+                profile = ini_data.get('environment', {}).get('profile')
+                if profile:
+                    boto3_session = boto3.session.Session(profile_name=profile)
+                else:
+                    boto3_session = boto3.session.Session()
+
+                region = ini_data['environment']['region']
+                stack_name = ini_data['environment']['stack_name']
+
+                cf_client = stack_driver.get_cloud_formation_client()
+
+                if not cf_client:
+                    cf_client = boto3_session.client('cloudformation', region_name=region)
+
+                stack_tool = stack_tool = StackTool(
+                    stack_name,
+                    region,
+                    cf_client
+                )
+            except Exception as wtf:
+                logging.warning('there was a problems printing stack info: {}'.format(wtf))
+
             if stack_driver.poll_stack():
                 logging.info('stack create/update was finished successfully.')
                 try:
-                    profile = ini_data.get('environment', {}).get('profile')
-                    if profile:
-                        boto3_session = boto3.session.Session(profile_name=profile)
-                    else:
-                        boto3_session = boto3.session.Session()
-
-                    region = ini_data['environment']['region']
-                    stack_name = ini_data['environment']['stack_name']
-
-                    cf_client = stack_driver.get_cloud_formation_client()
-
-                    if not cf_client:
-                        cf_client = boto3_session.client('cloudformation', region_name=region)
-
-                    stack_tool = stack_tool = StackTool(
-                        stack_name,
-                        region,
-                        cf_client
-                    )
                     stack_tool.print_stack_info()
                 except Exception as wtf:
                     logging.warning('there was a problems printing stack info: {}'.format(wtf))
@@ -197,6 +204,10 @@ def start_upsert(ini_data):
                 sys.exit(0)
             else:
                 logging.error('stack create/update was did not go well.')
+                try:
+                    stack_tool.print_stack_events(start_time)
+                except Exception as wtf:
+                    logging.warning('there was a problems printing stack events: {}'.format(wtf))
                 sys.exit(1)
     else:
         logging.error('start of stack create/update did not go well.')
