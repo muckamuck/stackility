@@ -154,7 +154,8 @@ class CloudStackUtility:
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-                    Tags=self._tags
+                    Tags=self._tags,
+                    ClientRequestToken=str(uuid.uuid4())
                 )
                 logging.info('existing stack ID: {}'.format(stack.get('StackId', 'unknown')))
             else:
@@ -163,7 +164,8 @@ class CloudStackUtility:
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
                     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
-                    Tags=self._tags
+                    Tags=self._tags,
+                    ClientRequestToken=str(uuid.uuid4())
                 )
                 logging.info('new stack ID: {}'.format(stack.get('StackId', 'unknown')))
         except Exception as x:
