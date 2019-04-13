@@ -91,7 +91,7 @@ class StackTool:
             print(wtf)
             return None
 
-    def print_stack_events(self, start_time):
+    def print_stack_events(self):
         '''
         List events from the given stack
 
@@ -101,9 +101,10 @@ class StackTool:
         Returns:
             None
         '''
-        first_token = '__FIRST_TOKEN_5ed1f6be'
+        first_token = '7be7981bd6287dd8112305e8f3822a6f'
         keep_going = True
         next_token = first_token
+        current_request_token = None
         rows = []
         try:
             while keep_going and next_token:
@@ -121,7 +122,10 @@ class StackTool:
                 for event in response['StackEvents']:
                     row = []
                     event_time = event.get('Timestamp')
-                    if int(event_time.strftime('%s')) < start_time:
+                    request_token = event.get('ClientRequestToken', 'unknown')
+                    if current_request_token is None:
+                        current_request_token = request_token
+                    elif current_request_token != request_token:
                         keep_going = False
                         break
 
