@@ -43,6 +43,16 @@ logging.basicConfig(
 )
 
 logging.getLogger().setLevel(logging_level)
+deletable_states = [
+    'REVIEW_IN_PROGRESS',
+    'ROLLBACK_COMPLETE'
+]
+
+complete_states = [
+    'CREATE_COMPLETE',
+    'UPDATE_COMPLETE',
+    'UPDATE_ROLLBACK_COMPLETE'
+]
 
 
 class CloudStackUtility:
@@ -543,8 +553,9 @@ class CloudStackUtility:
             stack_name = self._config.get('environment', {}).get('stack_name', None)
             response = self._cloudFormation.describe_stacks(StackName=stack_name)
             stack = response['Stacks'][0]
-            if stack['StackStatus'] == 'ROLLBACK_COMPLETE':
-                logging.info('stack is in ROLLBACK_COMPLETE status and should be deleted')
+            stack_status = stack.get('StackStatus')
+            if stack_status in deletable_states:
+                logging.info('stack is in {} and should be deleted'.format(stack_status))
                 del_stack_resp = self._cloudFormation.delete_stack(StackName=stack_name)
                 logging.info('delete started for stack: {}'.format(stack_name))
                 logging.debug('delete_stack returned: {}'.format(json.dumps(del_stack_resp, indent=4)))
@@ -552,7 +563,7 @@ class CloudStackUtility:
                 if not stack_delete:
                     return False
 
-            if stack['StackStatus'] in ['CREATE_COMPLETE', 'UPDATE_COMPLETE', 'UPDATE_ROLLBACK_COMPLETE']:
+            if stack['StackStatus'] in complete_states:
                 self._updateStack = True
         except:
             self._updateStack = False
