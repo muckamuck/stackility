@@ -163,7 +163,7 @@ class CloudStackUtility:
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
-                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
                     Tags=self._tags,
                     ClientRequestToken=str(uuid.uuid4())
                 )
@@ -173,7 +173,7 @@ class CloudStackUtility:
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
-                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
                     Tags=self._tags,
                     ClientRequestToken=str(uuid.uuid4())
                 )
@@ -234,7 +234,7 @@ class CloudStackUtility:
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
-                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
                     Tags=self._tags,
                     ChangeSetName=set_name,
                     ChangeSetType='UPDATE'
@@ -244,7 +244,7 @@ class CloudStackUtility:
                     StackName=self._config.get('environment', {}).get('stack_name', None),
                     TemplateURL=self._templateUrl,
                     Parameters=parameters,
-                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
+                    Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
                     Tags=self._tags,
                     ChangeSetName=set_name,
                     ChangeSetType='CREATE'
