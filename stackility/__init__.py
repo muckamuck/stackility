@@ -1,6 +1,7 @@
 from stackility.CloudStackUtility import CloudStackUtility #noqa
 from stackility.stack_tool import StackTool #noqa
 from stackility.drift import DriftTool #noqa
+from stackility.resources import ResourceTool
 from datetime import datetime
 
 __title__ = 'stackility'
