@@ -117,10 +117,12 @@ class ResourceTool(object):
                 next_token = response.get('NextToken')
                 if response:
                     for thing in response.get('StackResourceSummaries', []):
+                        print(json.dumps(thing, indent=2, default=date_converter))
                         row = []
                         row.append(thing.get('LogicalResourceId', 'unknown'))
                         row.append(thing.get('PhysicalResourceId', 'unknown'))
                         row.append(thing.get('ResourceStatus', 'unknown'))
+                        row.append(thing.get('ResourceType', 'unknown'))
                         row.append(thing.get('DriftInformation', {}).get('StackResourceDriftStatus', 'unknown'))
                         rows.append(row)
 
@@ -129,6 +131,7 @@ class ResourceTool(object):
                 'Logical ID',
                 'Physical ID',
                 'Resource Status',
+                'Resource Type',
                 'Drift Info'
             ]))
             return True
