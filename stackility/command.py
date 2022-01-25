@@ -3,6 +3,12 @@ The command line interface to stackility.
 
 Major help from: https://www.youtube.com/watch?v=kNke39OZ2k0
 """
+# pylint: disable=broad-except
+# pylint: disable=line-too-long
+# pylint: disable=invalid-name
+# pylint: disable=logging-format-interpolation
+
+
 from configparser import RawConfigParser
 import time
 import json
@@ -15,6 +21,16 @@ import click
 from stackility import CloudStackUtility
 from stackility import StackTool
 from stackility import DriftTool
+from stackility import ResourceTool
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(asctime)s (%(module)s) %(message)s',
+    datefmt='%Y/%m/%d-%H:%M:%S'
+)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 @click.group()
@@ -23,7 +39,7 @@ def cli():
     """
     A utility for creating, updating, listing and deleting AWS CloudFormation stacks.
     """
-    pass
+    logger.debug('cli() called')
 
 
 @cli.command()
@@ -67,7 +83,7 @@ def upsert(version, stack, ini, dryrun, yaml, no_poll, work_directory):
         try:
             os.chdir(work_directory)
         except Exception as wtf:
-            logging.error(wtf)
+            logger.error(wtf)
             sys.exit(2)
 
     print(json.dumps(ini_data, indent=2))
@@ -135,9 +151,9 @@ def drift(stack, region, profile):
     """
     Produce a CloudFormation drift report for the given stack.
     """
-    logging.debug('finding drift - stack: {}'.format(stack))
-    logging.debug('region: {}'.format(region))
-    logging.debug('profile: {}'.format(profile))
+    logger.debug('finding drift - stack: {}'.format(stack))
+    logger.debug('region: {}'.format(region))
+    logger.debug('profile: {}'.format(profile))
     tool = DriftTool(
         Stack=stack,
         Region=region,
@@ -146,6 +162,30 @@ def drift(stack, region, profile):
     )
 
     if tool.determine_drift():
+        sys.exit(0)
+    else:
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--stack', '-s', help='stack name', required=True)
+@click.option('-r', '--region', help='region where the stack lives')
+@click.option('-f', '--profile', help='AWS profile to access resources')
+def resources(stack, region, profile):
+    """
+    Produce a CloudFormation drift report for the given stack.
+    """
+    logging.debug('finding resources - stack: {}'.format(stack))
+    logging.debug('region: {}'.format(region))
+    logging.debug('profile: {}'.format(profile))
+    tool = ResourceTool(
+        Stack=stack,
+        Region=region,
+        Profile=profile,
+        Verbose=True
+    )
+
+    if tool.list_resources():
         sys.exit(0)
     else:
         sys.exit(1)
@@ -165,7 +205,7 @@ def start_upsert(ini_data):
     stack_driver = CloudStackUtility(ini_data)
     poll_stack = not ini_data.get('no_poll', False)
     if stack_driver.upsert():
-        logging.info('stack create/update was started successfully.')
+        logger.info('stack create/update was started successfully.')
 
         if poll_stack:
             stack_tool = None
@@ -190,25 +230,25 @@ def start_upsert(ini_data):
                     cf_client
                 )
             except Exception as wtf:
-                logging.warning('there was a problems creating stack tool: {}'.format(wtf))
+                logger.warning('there was a problems creating stack tool: {}'.format(wtf))
 
             if stack_driver.poll_stack():
                 try:
-                    logging.info('stack create/update was finished successfully.')
+                    logger.info('stack create/update was finished successfully.')
                     stack_tool.print_stack_info()
                 except Exception as wtf:
-                    logging.warning('there was a problems printing stack info: {}'.format(wtf))
+                    logger.warning('there was a problems printing stack info: {}'.format(wtf))
 
                 sys.exit(0)
             else:
                 try:
-                    logging.error('stack create/update was did not go well.')
+                    logger.error('stack create/update was did not go well.')
                     stack_tool.print_stack_events()
                 except Exception as wtf:
-                    logging.warning('there was a problems printing stack events: {}'.format(wtf))
+                    logger.warning('there was a problems printing stack events: {}'.format(wtf))
                 sys.exit(1)
     else:
-        logging.error('start of stack create/update did not go well.')
+        logger.error('start of stack create/update did not go well.')
         sys.exit(1)
 
 
@@ -279,6 +319,6 @@ def read_config_info(ini_file):
 
         return the_stuff
     except Exception as wtf:
-        logging.error('Exception caught in read_config_info(): {}'.format(wtf))
+        logger.error('Exception caught in read_config_info(): {}'.format(wtf))
         traceback.print_exc(file=sys.stdout)
         return sys.exit(1)
