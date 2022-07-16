@@ -1,19 +1,27 @@
+'''
+A utility class to extract and print info about a
+CloudFormation stack.
+'''
+# pylint: disable=broad-except
+# pylint: disable=invalid-name
+
 import os
 import sys
-import boto3
 import logging
-import traceback
 import datetime
+
+import boto3
 from tabulate import tabulate
 
+logger = logging.getLogger(__name__)
 zero_time = datetime.datetime.utcfromtimestamp(0)
 
 
 class StackTool:
-    _cf_client = None
-    _stack_name = None
-    _region = None
-
+    '''
+    A utility class to extract and print info about a
+    CloudFormation stack.
+    '''
     def __init__(self, stack_name, region, cf_client):
         """
         StackTool is a simple tool to print some specific data about a
@@ -33,7 +41,8 @@ class StackTool:
             self._stack_name = stack_name
             self._region = region
             self._cf_client = cf_client
-        except Exception:
+        except Exception as wtf:
+            logger.error(wtf, exc_info=True)
             raise SystemError
 
     def print_stack_info(self):
@@ -67,24 +76,12 @@ class StackTool:
                 row.append(resource['LogicalResourceId'])
                 row.append(resource['PhysicalResourceId'])
                 rows.append(row)
-                '''
-                print('\t{}\t{}\t{}'.format(
-                        resource['ResourceType'],
-                        resource['LogicalResourceId'],
-                        resource['PhysicalResourceId']
-                    )
-                )
-                '''
             print(tabulate(rows, headers=['Resource Type', 'Logical ID', 'Physical ID']))
 
             if rest_api_id and deployment_found:
-                url = 'https://{}.execute-api.{}.amazonaws.com/{}'.format(
-                    rest_api_id,
-                    self._region,
-                    '<stage>'
-                )
+                url = f'https://{rest_api_id}.execute-api.{self._region}.amazonaws.com/<stage>'
                 print('\nThe deployed service can be found at this URL:')
-                print('\t{}\n'.format(url))
+                print(f'\t{url}\n')
 
             return response
         except Exception as wtf:
@@ -139,27 +136,28 @@ class StackTool:
                 print('\nEvents for the current upsert:')
                 print(tabulate(rows, headers=['Time', 'Logical ID', 'Status', 'Message']))
                 return True
-            else:
-                print('\nNo stack events found\n')
+
+            print('\nNo stack events found\n')
         except Exception as wtf:
             print(wtf)
 
         return False
 
+
 if __name__ == '__main__':
-    cf_client = None
+    the_cf_client = None
     try:
-        region = os.environ.get('region', 'us-east-1')
+        the_region = os.environ.get('region', 'us-east-1')
         b3Sess = boto3.session.Session()
-        cf_client = b3Sess.client('cloudformation', region_name=region)
-    except Exception as wtf:
-        logging.error('Exception caught in intialize_session(): {}'.format(wtf))
-        traceback.print_exc(file=sys.stdout)
+        the_cf_client = b3Sess.client('cloudformation', region_name=the_region)
+    except Exception as ruh_rog_shaggy:
+        logger.error('Exception caught in intialize_session():')
+        logger.error(ruh_rog_shaggy, exc_info=True)
         sys.exit(1)
 
     int(datetime.datetime.now().strftime('%s'))
     int(datetime.datetime.utcnow().strftime('%s'))
-    stack_tool = StackTool(sys.argv[1], 'us-east-1', cf_client)
+    stack_tool = StackTool(sys.argv[1], 'us-east-1', the_cf_client)
     '''
     stack_tool.print_stack_info()
     '''
