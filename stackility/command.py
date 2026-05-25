@@ -33,7 +33,7 @@ logger.setLevel(logging.INFO)
 
 
 @click.group()
-@click.version_option(version='0.8.1')
+@click.version_option(version='0.8.2')
 def cli():
     """
     A utility for creating, updating, listing and deleting AWS CloudFormation stacks.
