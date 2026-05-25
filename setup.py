@@ -14,8 +14,7 @@ setup(
         "pymongo>=3.4.0",
         "tabulate>=0.8",
         "configparser",
-        "jinja2",
-        "cloudformation-validator>=0.6"
+        "jinja2"
     ],
     entry_points="""
         [console_scripts]

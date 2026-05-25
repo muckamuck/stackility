@@ -8,7 +8,6 @@ The main class for the Stackility adventure.
 
 import boto3
 from botocore.exceptions import ClientError
-from cloudformation_validator.ValidateUtility import ValidateUtility
 from bson import json_util
 import jinja2
 import getpass
@@ -144,9 +143,6 @@ class CloudStackUtility:
                     parameter['ParameterValue'] = self._parameters[required_parameter.lower()]
 
                 parameters.append(parameter)
-
-            if not self._analyze_stuff():
-                sys.exit(1)
 
             if self._config.get('dryrun', False):
                 logger.info('Generating change set')
@@ -741,114 +737,6 @@ class CloudStackUtility:
         elif not self._set_update():
             logger.error('there was a problem determining update or create')
             raise SystemError
-
-    def _analyze_stuff(self):
-        template_scanner = self._config.get('analysis', {}).get('template', None)
-        tags_scanner = self._config.get('analysis', {}).get('tags', None)
-
-        if template_scanner or tags_scanner:
-            r = self._externally_analyze_stuff(template_scanner, tags_scanner)
-            if not r:
-                return False
-
-        wrk = self._config.get('analysis', {}).get('enforced', 'crap').lower()
-        rule_exceptions = self._config.get('analysis', {}).get('exceptions', None)
-        if wrk == 'true' or wrk == 'false':
-            enforced = wrk == 'true'
-            self._internally_analyze_stuff(enforced, rule_exceptions)
-
-        return True
-
-    def _externally_analyze_stuff(self, template_scanner, tags_scanner):
-        scans_executed = False
-        tags_scan_status = 0
-        template_scan_status = 0
-        the_data = None
-
-        try:
-            if template_scanner:
-                scans_executed = True
-                with open(self._config['environment']['template'], 'rb') as template_data:
-                    the_data = template_data.read()
-
-                r = requests.post(template_scanner, data=the_data)
-                answer = json.loads(r.content)
-                template_scan_status = answer.get('exit_status', -2)
-                print('\nTemplate scan:')
-                print(json.dumps(answer, indent=2))
-
-            if tags_scanner:
-                scans_executed = True
-                with open(self._config['environment']['template'], 'rb') as template_data:
-                    the_data = template_data.read()
-
-                r = requests.post(template_scanner, data=the_data)
-                answer = json.loads(r.content)
-                tags_scan_status = answer.get('exit_status', -2)
-                print('\nTag scan:')
-                print(json.dumps(answer, indent=2))
-
-            if not scans_executed:
-                return True
-            elif template_scan_status == 0 and tags_scan_status == 0:
-                print('All scans successful')
-                return True
-            else:
-                print('Failed scans')
-                return False
-        except Exception as wtf:
-            print('')
-            logger.info('template_scanner: {}'.format(template_scanner))
-            logger.info('    tags_scanner: {}'.format(tags_scanner))
-            print('')
-            logger.error('Exception caught in analyze_stuff(): {}'.format(wtf))
-            traceback.print_exc(file=sys.stdout)
-
-        return False
-
-    def _internally_analyze_stuff(self, enforced, rule_exceptions):
-        try:
-            config_dict = {}
-            config_dict['template_file'] = self._config['environment']['template']
-            validator = ValidateUtility(config_dict)
-            _results = validator.validate()
-            results = json.loads(_results)
-
-            for result in results:
-                try:
-                    error_count = int(result.get('failure_count', 0))
-                except Exception as strangeness:
-                    logger.warn('internally_analyze_stuff() strangeness: {}'.format(strangeness))
-                    error_count = -1
-                    if enforced:
-                        traceback.print_exc(file=sys.stdout)
-                        sys.exit(1)
-
-                if error_count == 0:
-                    logger.info('CloudFormation Validator found zero errors')
-                elif error_count == 1:
-                    if enforced:
-                        logger.error('CloudFormation Validator found one error')
-                        sys.exit(1)
-                    else:
-                        logger.warn('CloudFormation Validator found one error')
-                elif error_count > 1:
-                    if enforced:
-                        logger.error(
-                            'CloudFormation Validator found {} errors'.format(error_count)
-                        )
-                        sys.exit(1)
-                    else:
-                        logger.warn(
-                            'CloudFormation Validator found {} errors'.format(error_count)
-                        )
-        except Exception as ruh_roh_shaggy:
-            logger.error('internally_analyze_stuff() exploded: {}'.format(ruh_roh_shaggy))
-            traceback.print_exc(file=sys.stdout)
-            if enforced:
-                sys.exit(1)
-
-        return True
 
     def get_cloud_formation_client(self):
         return self._cloudFormation
